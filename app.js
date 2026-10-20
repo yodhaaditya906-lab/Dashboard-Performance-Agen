@@ -1,8 +1,8 @@
-
 function setSafeText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
 }
+
 // Bank Mandiri - Dashboard Performance Agen
 // State Management
 const state = {
@@ -17,7 +17,7 @@ const state = {
   },
   pagination: {
     page: 1,
-    pageSize: 15
+    pageSize: 20
   },
   monthlyData: [],
   unitRefData: [],
@@ -127,13 +127,62 @@ function setupEventListeners() {
     });
   }
 
-  // Filter Unit
+  // Filter Unit (Toolbar select)
   const filterUnit = document.getElementById('filter-select-unit');
   if (filterUnit) {
     filterUnit.addEventListener('change', (e) => {
-      state.filters.unit = e.target.value;
-      state.pagination.page = 1;
-      renderMainTable();
+      selectUnit(e.target.value);
+    });
+  }
+
+  // Top-Right Unit Search Input
+  const unitSearchInput = document.getElementById('unit-search-input');
+  const btnClearSearch = document.getElementById('btn-clear-unit-search');
+  if (unitSearchInput) {
+    unitSearchInput.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (btnClearSearch) {
+        if (val) btnClearSearch.classList.remove('hidden');
+        else btnClearSearch.classList.add('hidden');
+      }
+      renderTableUnitSelector(val);
+    });
+
+    unitSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const firstRow = document.querySelector('#tbody-unit-selector tr[data-unit-name]');
+        if (firstRow) {
+          const uName = firstRow.getAttribute('data-unit-name');
+          const uCode = firstRow.getAttribute('data-unit-code');
+          selectUnit(uName, uCode);
+        }
+      }
+    });
+  }
+
+  if (btnClearSearch) {
+    btnClearSearch.addEventListener('click', () => {
+      if (unitSearchInput) unitSearchInput.value = '';
+      btnClearSearch.classList.add('hidden');
+      renderTableUnitSelector('');
+    });
+  }
+
+  // Top-Right Unit Dropdown Select
+  const unitDropdownSelect = document.getElementById('unit-dropdown-select');
+  if (unitDropdownSelect) {
+    unitDropdownSelect.addEventListener('change', (e) => {
+      selectUnit(e.target.value);
+    });
+  }
+
+  // Top-Right Reset Button
+  const btnResetUnit = document.getElementById('btn-reset-unit');
+  if (btnResetUnit) {
+    btnResetUnit.addEventListener('click', () => {
+      selectUnit('', '');
+      if (unitSearchInput) unitSearchInput.value = '';
+      if (btnClearSearch) btnClearSearch.classList.add('hidden');
     });
   }
 
@@ -155,13 +204,7 @@ function setupEventListeners() {
     });
   }
 
-  // Search Unit Ref (Table 2)
-  const searchUnitRef = document.getElementById('search-unit-ref');
-  if (searchUnitRef) {
-    searchUnitRef.addEventListener('input', (e) => {
-      renderTableUnitRef(e.target.value.toLowerCase().trim());
-    });
-  }
+
 
   // Pagination buttons
   const btnPrev = document.getElementById('btn-page-prev');
@@ -198,21 +241,57 @@ async function fetchDashboardData(force = false) {
   if (syncText) syncText.textContent = 'Menyinkronkan data Google Sheet...';
 
   try {
-    const url = force ? '/api/data?refresh=1' : '/api/data';
-    const res = await fetch(url);
-    const result = await res.json();
+    let result = null;
+    try {
+      const url = force ? '/api/data?refresh=1' : '/api/data';
+      const res = await fetch(url);
+      if (res.ok) {
+        result = await res.json();
+      }
+    } catch (e) {
+      console.warn('Backend API /api/data not available, using direct Google Sheets:', e);
+    }
+
+    // Direct Google Sheets fallback (for GitHub Pages / static hosting)
+    if (!result || !result.success) {
+      result = await fetchDirectGoogleSheets();
+    }
 
     state.config = result.config || {};
-    state.hasData = !!(result.hasData && result.rows && result.rows.length > 0);
-    state.rawRows = result.rows || [];
+    const rawList = result.table3_agents || result.rows || [];
+
+    // Filter out rows where Nama SGP is empty / NULL / '-' per user request
+    state.rawRows = rawList.filter(row => {
+      const sgp = (row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp'])).trim();
+      return sgp && sgp !== 'NULL' && sgp !== 'null' && sgp !== '-';
+    });
+
+    state.hasData = !!(result.hasData && (state.rawRows.length > 0 || result.table1_monthly?.length > 0));
     state.headers = result.headers || [];
+
+    if (result.table1_monthly && result.table1_monthly.length > 0) {
+      state.monthlyData = (result.table1_monthly || []).filter(d => {
+        const u = (d.unit || '').toUpperCase().trim();
+        return u && !u.includes('TOTAL') && !u.includes('#N/A') && !u.includes('#REF') && u !== '#N/A';
+      });
+    }
+    if (result.table2_units && result.table2_units.length > 0) {
+      state.unitRefData = result.table2_units;
+    }
+    if (result.table4_rank && result.table4_rank.length > 0) {
+      state.summaryKuadranData = result.table4_rank;
+    } else if (state.monthlyData.length > 0) {
+      state.summaryKuadranData = state.monthlyData.map(u => ({
+        unit: u.unit,
+        totalAC: (u.oktA + u.oktC) || (u.septA + u.septC)
+      })).filter(u => u.totalAC > 0);
+    }
 
     if (pulseDot) pulseDot.classList.remove('syncing');
     if (syncIcon) syncIcon.style.animation = '';
 
     if (state.hasData) {
-      if (syncText) syncText.textContent = `Live Sync: Terhubung (${result.totalRows.toLocaleString('id-ID')} data agen aktif)`;
-      processDataAggregations();
+      if (syncText) syncText.textContent = `Live Sync: Terhubung (${state.rawRows.length.toLocaleString('id-ID')} data agen aktif)`;
       populateFilters();
       renderAll();
     } else {
@@ -249,76 +328,117 @@ function getVal(row, keys) {
   return '';
 }
 
-function processDataAggregations() {
-  const unitMap = new Map();
-  const unitRefMap = new Map();
 
-  state.rawRows.forEach(row => {
-    const unitName = getVal(row, ['nama unit', 'unit']) || 'Unit Tidak Terdefinisi';
-    const unitCode = getVal(row, ['kode unit', 'id unit']) || '-';
-    
-    // Save Unit Ref
-    if (unitName !== 'Unit Tidak Terdefinisi' && !unitRefMap.has(unitName)) {
-      unitRefMap.set(unitName, unitCode);
-    }
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;');
+}
 
-    // Monthly Kuadran processing
-    if (!unitMap.has(unitName)) {
-      unitMap.set(unitName, {
-        unit: unitName,
-        code: unitCode,
-        septA: 0,
-        septC: 0,
-        oktA: 0,
-        oktC: 0,
-        totalAC: 0
-      });
-    }
-
-    const item = unitMap.get(unitName);
-    const kuadranVal = getVal(row, ['kuadran', 'quadrant']).toUpperCase();
-    const bulanVal = getVal(row, ['bulan', 'periode', 'month']).toLowerCase();
-
-    // Check Sept or Okt
-    const isSept = bulanVal.includes('sept') || bulanVal.includes('09');
-    const isOkt = bulanVal.includes('okt') || bulanVal.includes('oct') || bulanVal.includes('10') || !bulanVal;
-
-    if (kuadranVal.includes('A')) {
-      if (isSept) item.septA++;
-      if (isOkt) item.oktA++;
-      item.totalAC++;
-    } else if (kuadranVal.includes('C')) {
-      if (isSept) item.septC++;
-      if (isOkt) item.oktC++;
-      item.totalAC++;
+function getUnitAgentCount(unitName, unitCode) {
+  if (!unitName && !unitCode) return (state.rawRows || []).length;
+  const uNorm = (unitName || '').toLowerCase().trim();
+  const cNorm = (unitCode || '').toLowerCase().trim();
+  let count = 0;
+  (state.rawRows || []).forEach(row => {
+    const aUnit = (row['Nama Unit'] || getVal(row, ['nama unit', 'unit']) || '').toLowerCase().trim();
+    const aCode = (row['Kode Unit'] || getVal(row, ['kode unit']) || '').toLowerCase().trim();
+    if ((cNorm && aCode === cNorm) || (uNorm && aUnit === uNorm) || (uNorm && aUnit.includes(uNorm))) {
+      count++;
     }
   });
+  return count;
+}
 
-  // Table 1 Data
-  state.monthlyData = Array.from(unitMap.values()).sort((a, b) => a.unit.localeCompare(b.unit));
+function selectUnit(unitName, unitCode) {
+  unitName = (unitName || '').trim();
+  unitCode = (unitCode || '').trim();
 
-  // Table 2 Data
-  state.unitRefData = Array.from(unitRefMap.entries()).map(([name, code]) => ({
-    name,
-    code
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  if (unitCode && !unitName) {
+    const found = (state.unitRefData || []).find(u => u.code === unitCode);
+    if (found) unitName = found.name;
+  } else if (unitName && !unitCode) {
+    const found = (state.unitRefData || []).find(u => u.name.toLowerCase() === unitName.toLowerCase());
+    if (found) unitCode = found.code;
+  }
 
-  // Table 4 Data (Unit, Kuadran A & C)
-  state.summaryKuadranData = state.monthlyData.map(u => ({
-    unit: u.unit,
-    totalAC: u.totalAC || (u.oktA + u.oktC)
-  })).filter(u => u.totalAC > 0);
+  state.filters.unit = unitName;
+  state.pagination.page = 1;
+
+  // Update Status Box in Top-Right
+  const selNameEl = document.getElementById('selected-unit-name');
+  const selBadgeEl = document.getElementById('selected-unit-badge');
+  const btnResetEl = document.getElementById('btn-reset-unit');
+
+  if (unitName) {
+    const agentCount = getUnitAgentCount(unitName, unitCode);
+    if (selNameEl) selNameEl.textContent = unitCode ? `[${unitCode}] ${unitName}` : unitName;
+    if (selBadgeEl) selBadgeEl.textContent = `${agentCount.toLocaleString('id-ID')} Agen`;
+    if (btnResetEl) btnResetEl.classList.remove('hidden');
+  } else {
+    if (selNameEl) selNameEl.textContent = `Semua Unit (${(state.unitRefData || []).length} Unit)`;
+    if (selBadgeEl) selBadgeEl.textContent = `${(state.rawRows || []).length.toLocaleString('id-ID')} Agen`;
+    if (btnResetEl) btnResetEl.classList.add('hidden');
+  }
+
+  // Synchronize Top Dropdown
+  const topDropdown = document.getElementById('unit-dropdown-select');
+  if (topDropdown) {
+    topDropdown.value = unitName;
+  }
+
+  // Synchronize Toolbar Dropdown
+  const toolbarSelect = document.getElementById('filter-select-unit');
+  if (toolbarSelect) {
+    toolbarSelect.value = unitName;
+  }
+
+  // Highlight rows
+  renderTableUnitSelector();
+  highlightMonthlyKuadranRow(unitName);
+
+  // Render agents table with filter
+  renderMainTable();
+
+  // Scroll smoothly to agents table if unit selected
+  if (unitName) {
+    const mainSection = document.querySelector('.panel-main-agents');
+    if (mainSection) {
+      mainSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      mainSection.classList.add('table-focus-pulse');
+      setTimeout(() => mainSection.classList.remove('table-focus-pulse'), 1200);
+    }
+  }
+}
+
+function highlightMonthlyKuadranRow(unitName) {
+  const tbody = document.getElementById('tbody-monthly-kuadran');
+  if (!tbody) return;
+  const uNorm = (unitName || '').toLowerCase().trim();
+  tbody.querySelectorAll('tr[data-unit]').forEach(tr => {
+    const trUnit = (tr.getAttribute('data-unit') || '').toLowerCase().trim();
+    if (uNorm && trUnit === uNorm) {
+      tr.classList.add('active-unit-row');
+    } else {
+      tr.classList.remove('active-unit-row');
+    }
+  });
 }
 
 function populateFilters() {
   const units = new Set();
   const sgps = new Set();
 
+  if (state.unitRefData) {
+    state.unitRefData.forEach(u => { if (u.name) units.add(u.name); });
+  }
+  if (state.monthlyData) {
+    state.monthlyData.forEach(u => { if (u.unit) units.add(u.unit); });
+  }
+
   state.rawRows.forEach(row => {
-    const u = getVal(row, ['nama unit', 'unit']);
-    const s = getVal(row, ['nama sgp', 'sgp']);
+    const u = row['Nama Unit'] || getVal(row, ['nama unit', 'unit']);
+    const s = row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp']);
     if (u) units.add(u);
-    if (s) sgps.add(s);
+    if (s && s !== 'NULL' && s !== 'null' && s !== '-') sgps.add(s);
   });
 
   const selectUnit = document.getElementById('filter-select-unit');
@@ -327,6 +447,18 @@ function populateFilters() {
     selectUnit.innerHTML = '<option value="">Semua Unit</option>' + 
       Array.from(units).sort().map(u => `<option value="${u}">${u}</option>`).join('');
     selectUnit.value = current;
+  }
+
+  const unitDropdown = document.getElementById('unit-dropdown-select');
+  if (unitDropdown) {
+    const current = unitDropdown.value;
+    const sorted = Array.from(state.unitRefData || []).sort((a, b) => a.name.localeCompare(b.name));
+    unitDropdown.innerHTML = '<option value="">-- Semua Unit (99 Unit) --</option>' + 
+      sorted.map(u => {
+        const count = getUnitAgentCount(u.name, u.code);
+        return `<option value="${escapeAttr(u.name)}">[${u.code}] ${u.name} (${count} Agen)</option>`;
+      }).join('');
+    unitDropdown.value = state.filters.unit || current || '';
   }
 
   const selectSgp = document.getElementById('filter-select-sgp');
@@ -339,14 +471,13 @@ function populateFilters() {
 }
 
 function renderAll() {
-  if (!state.hasData || state.rawRows.length === 0) {
+  if (!state.hasData || (state.rawRows.length === 0 && state.monthlyData.length === 0)) {
     renderEmptyStates();
     return;
   }
 
-  renderKPIs();
   renderTableMonthlyKuadran();
-  renderTableUnitRef();
+  renderTableUnitSelector();
   renderMainTable();
   renderTableSummaryKuadran();
   renderChart();
@@ -374,11 +505,9 @@ function renderEmptyStates() {
   const t3 = document.getElementById('tbody-agents-main');
   if (t3) {
     t3.innerHTML = `
-      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
     `;
   }
 
@@ -395,16 +524,15 @@ function renderEmptyStates() {
   setSafeText('page-current-num', 'Halaman 1');
 }
 
-function renderKPIs() {
-  // KPI grid removed per user preference
-}
-
 // TABEL 1: Perbandingan Kuadran Bulanan (Sept vs Okt)
 function renderTableMonthlyKuadran(filterQuery = '') {
   const tbody = document.getElementById('tbody-monthly-kuadran');
   if (!tbody) return;
 
-  let list = state.monthlyData;
+  let list = (state.monthlyData || []).filter(d => {
+    const u = (d.unit || '').toUpperCase().trim();
+    return u && !u.includes('TOTAL') && !u.includes('#N/A') && !u.includes('#REF') && u !== '#N/A';
+  });
   if (filterQuery) {
     list = list.filter(d => d.unit.toLowerCase().includes(filterQuery));
   }
@@ -423,12 +551,12 @@ function renderTableMonthlyKuadran(filterQuery = '') {
     totOktC += item.oktC;
 
     return `
-      <tr>
+      <tr data-unit="${escapeAttr(item.unit)}" class="${state.filters.unit && state.filters.unit.toLowerCase() === item.unit.toLowerCase() ? 'active-unit-row' : ''}">
         <td style="font-weight:600;">${item.unit}</td>
         <td style="text-align:center;">${item.septA.toLocaleString('id-ID')}</td>
         <td style="text-align:center;">${item.septC.toLocaleString('id-ID')}</td>
-        <td style="text-align:center; color:#38bdf8; font-weight:600;">${item.oktA.toLocaleString('id-ID')}</td>
-        <td style="text-align:center; color:#38bdf8; font-weight:600;">${item.oktC.toLocaleString('id-ID')}</td>
+        <td style="text-align:center; color:#000000; font-weight:600;">${item.oktA.toLocaleString('id-ID')}</td>
+        <td style="text-align:center; color:#000000; font-weight:600;">${item.oktC.toLocaleString('id-ID')}</td>
       </tr>
     `;
   }).join('');
@@ -437,31 +565,69 @@ function renderTableMonthlyKuadran(filterQuery = '') {
   setSafeText('tfoot-sept-c', totSeptC.toLocaleString('id-ID'));
   setSafeText('tfoot-okt-a', totOktA.toLocaleString('id-ID'));
   setSafeText('tfoot-okt-c', totOktC.toLocaleString('id-ID'));
+
+  // Attach click listener on Table 1 rows to filter agents
+  tbody.querySelectorAll('tr[data-unit]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const u = tr.getAttribute('data-unit');
+      if (state.filters.unit && state.filters.unit.toLowerCase() === u.toLowerCase()) {
+        selectUnit('', '');
+      } else {
+        selectUnit(u);
+      }
+    });
+  });
 }
 
-// TABEL 2: Referensi Unit (Kode Unit, Nama Unit)
-function renderTableUnitRef(filterQuery = '') {
-  const tbody = document.getElementById('tbody-unit-ref');
+// TABEL 2: Menu Pencarian & Seleksi Unit (Search Bar + Dropdown + Clickable List)
+function renderTableUnitSelector(filterQuery = '') {
+  const tbody = document.getElementById('tbody-unit-selector');
   if (!tbody) return;
 
-  let list = state.unitRefData;
+  let list = state.unitRefData || [];
   if (filterQuery) {
-    list = list.filter(u => u.name.toLowerCase().includes(filterQuery) || u.code.toLowerCase().includes(filterQuery));
+    const q = filterQuery.toLowerCase().trim();
+    list = list.filter(u => u.name.toLowerCase().includes(q) || u.code.toLowerCase().includes(q));
   }
 
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px; color:#94a3b8;">Tidak ada data unit.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:18px; color:#000000; background:#c8c8c8; font-weight:600;">Tidak ada unit ditemukan.</td></tr>';
+    setSafeText('tfoot-unit-count', '0 Unit');
+    setSafeText('tfoot-unit-agents-total', '0');
     return;
   }
 
-  tbody.innerHTML = list.map(item => `
-    <tr>
-      <td><code style="color:#f472b6; font-weight:600;">${item.code}</code></td>
-      <td style="font-weight:600;">${item.name}</td>
-    </tr>
-  `).join('');
+  const activeUnit = (state.filters.unit || '').toLowerCase().trim();
 
-  setSafeText('tfoot-total-unit-ref', `${list.length} Unit`);
+  tbody.innerHTML = list.map(item => {
+    const count = getUnitAgentCount(item.name, item.code);
+    const isActive = activeUnit && (item.name.toLowerCase().trim() === activeUnit || item.code.toLowerCase().trim() === activeUnit);
+    return `
+      <tr data-unit-name="${escapeAttr(item.name)}" data-unit-code="${escapeAttr(item.code)}" class="${isActive ? 'active-unit-row' : ''}">
+        <td style="text-align:center;"><code style="font-weight:700;">${item.code}</code></td>
+        <td style="font-weight:600;" title="${escapeAttr(item.name)}">${item.name}</td>
+        <td style="text-align:center; font-weight:700;">${count.toLocaleString('id-ID')}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Attach click handler on all rows
+  tbody.querySelectorAll('tr[data-unit-name]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const uName = tr.getAttribute('data-unit-name');
+      const uCode = tr.getAttribute('data-unit-code');
+      if (state.filters.unit && state.filters.unit.toLowerCase() === uName.toLowerCase()) {
+        selectUnit('', '');
+      } else {
+        selectUnit(uName, uCode);
+      }
+    });
+  });
+
+  setSafeText('tfoot-unit-count', `${list.length} Unit`);
+  let totalAgents = 0;
+  list.forEach(u => { totalAgents += getUnitAgentCount(u.name, u.code); });
+  setSafeText('tfoot-unit-agents-total', totalAgents.toLocaleString('id-ID'));
 }
 
 // TABEL 3: Main Performance Agen
@@ -470,18 +636,26 @@ function renderMainTable() {
   if (!tbody) return;
 
   let list = state.rawRows.filter(row => {
-    const sgp = getVal(row, ['nama sgp', 'sgp']).toLowerCase();
-    const kode = getVal(row, ['kode agen', 'id agen']).toLowerCase();
-    const usaha = getVal(row, ['nama usaha', 'usaha', 'outlet']).toLowerCase();
-    const pemilik = getVal(row, ['nama pemilik', 'pemilik', 'nama']).toLowerCase();
-    const unit = getVal(row, ['nama unit', 'unit']);
+    const sgp = (row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp'])).toLowerCase();
+    const kode = (row['Kode Agen'] || getVal(row, ['kode agen', 'id agen'])).toLowerCase();
+    const usaha = (row['Nama Usaha Agen'] || getVal(row, ['nama usaha', 'usaha', 'outlet'])).toLowerCase();
+    const pemilik = (row['Nama Pemilik Agen'] || getVal(row, ['nama pemilik', 'pemilik', 'nama'])).toLowerCase();
+    const unit = row['Nama Unit'] || getVal(row, ['nama unit', 'unit']);
+    const unitCode = row['Kode Unit'] || getVal(row, ['kode unit']);
 
-    if (state.filters.unit && unit !== state.filters.unit) return false;
+    if (state.filters.unit) {
+      const selected = state.filters.unit.toLowerCase().trim();
+      const uNorm = (unit || '').toLowerCase().trim();
+      const cNorm = (unitCode || '').toLowerCase().trim();
+      if (uNorm !== selected && cNorm !== selected && !uNorm.includes(selected)) {
+        return false;
+      }
+    }
     if (state.filters.sgp && !sgp.includes(state.filters.sgp.toLowerCase())) return false;
 
     if (state.filters.search) {
       const q = state.filters.search;
-      if (!sgp.includes(q) && !kode.includes(q) && !usaha.includes(q) && !pemilik.includes(q)) {
+      if (!sgp.includes(q) && !kode.includes(q) && !usaha.includes(q) && !pemilik.includes(q) && !unit.toLowerCase().includes(q)) {
         return false;
       }
     }
@@ -491,37 +665,39 @@ function renderMainTable() {
   const total = list.length;
   setSafeText('agent-count-badge', `${total.toLocaleString('id-ID')} Agen`);
 
-  const { page, pageSize } = state.pagination;
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  const startIdx = (page - 1) * pageSize;
-  const pageRows = list.slice(startIdx, startIdx + pageSize);
-
-  if (pageRows.length === 0) {
+  // Render all rows in 1 single slide/page (scrollable table)
+  if (list.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center; padding: 36px; color:#94a3b8;">
+        <td colspan="8" style="text-align:center; padding: 36px; color:#94a3b8;">
           Tidak ada agen yang sesuai dengan pencarian atau filter.
         </td>
       </tr>`;
   } else {
-    tbody.innerHTML = pageRows.map(row => {
-      const namaSgp = getVal(row, ['nama sgp', 'sgp']) || '-';
-      const kodeAgen = getVal(row, ['kode agen', 'id agen']) || '-';
-      const usaha = getVal(row, ['nama usaha', 'usaha', 'outlet']) || '-';
-      const pemilik = getVal(row, ['nama pemilik', 'pemilik', 'nama']) || '-';
-      const nas = getVal(row, ['nas komgen', 'naskomgen', 'nas']) || '0';
-      const fun = getVal(row, ['funkomgen', 'fun komgen', 'fun']) || '0';
-      const frek = getVal(row, ['frek + ref', 'frek', 'transaksi']) || '0';
+    tbody.innerHTML = list.map((row, idx) => {
+      const rowNum = idx + 1;
+      const namaSgp = row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp']) || '-';
+      const kodeAgen = row['Kode Agen'] || getVal(row, ['kode agen', 'id agen']) || '-';
+      const usaha = row['Nama Usaha Agen'] || getVal(row, ['nama usaha', 'usaha', 'outlet']) || '-';
+      const pemilik = row['Nama Pemilik Agen'] || getVal(row, ['nama pemilik', 'pemilik', 'nama']) || '-';
+      const nas = row['Nas komgen'] || getVal(row, ['nas komgen', 'naskomgen', 'nas']) || '0';
+      const fun = row['Funding Naskomgen'] || row['Funkomgen'] || getVal(row, ['funkomgen', 'fun komgen', 'fun']) || '0';
+      const frek = row['Frekuensi + Ref Input'] || getVal(row, ['frekuensi + ref input', 'frek + ref', 'frek', 'transaksi']) || '0';
+
+      const formattedNas = Number(nas) ? Number(nas).toLocaleString('id-ID') : nas;
+      const formattedFun = Number(fun) ? Number(fun).toLocaleString('id-ID') : fun;
+      const formattedFrek = Number(frek) ? Number(frek).toLocaleString('id-ID') : frek;
 
       return `
         <tr>
-          <td style="font-weight:600;">${namaSgp}</td>
-          <td><code style="color:#fb923c; font-weight:600;">${kodeAgen}</code></td>
-          <td>${usaha}</td>
-          <td>${pemilik}</td>
-          <td style="text-align:center;">${nas}</td>
-          <td style="text-align:center;">${fun}</td>
-          <td style="text-align:center; font-weight:700; color:#38bdf8;">${frek}</td>
+          <td style="text-align:center; color:#94a3b8; font-weight:600;">${rowNum}</td>
+          <td style="font-weight:600; color:#e2e8f0;">${namaSgp}</td>
+          <td style="text-align:center;"><code style="color:#fb923c; font-weight:600;">${kodeAgen}</code></td>
+          <td style="color:#f8fafc;">${usaha}</td>
+          <td style="color:#cbd5e1;">${pemilik}</td>
+          <td style="text-align:center;">${formattedNas}</td>
+          <td style="text-align:center;">${formattedFun}</td>
+          <td style="text-align:center; font-weight:700; color:#38bdf8;">${formattedFrek}</td>
         </tr>
       `;
     }).join('');
@@ -530,19 +706,20 @@ function renderMainTable() {
   // Calculate totals
   let totNas = 0, totFun = 0, totFrek = 0;
   list.forEach(r => {
-    totNas += parseFloat(getVal(r, ['nas komgen', 'naskomgen', 'nas']).replace(/[^0-9.-]+/g, '')) || 0;
-    totFun += parseFloat(getVal(r, ['funkomgen', 'fun komgen', 'fun']).replace(/[^0-9.-]+/g, '')) || 0;
-    totFrek += parseFloat(getVal(r, ['frek + ref', 'frek', 'transaksi']).replace(/[^0-9.-]+/g, '')) || 0;
+    const rawNas = r['Nas komgen'] || getVal(r, ['nas komgen', 'naskomgen', 'nas']);
+    const rawFun = r['Funding Naskomgen'] || r['Funkomgen'] || getVal(r, ['funkomgen', 'fun komgen', 'fun']);
+    const rawFrek = r['Frekuensi + Ref Input'] || getVal(r, ['frekuensi + ref input', 'frek + ref', 'frek', 'transaksi']);
+    
+    totNas += parseFloat(String(rawNas).replace(/[^0-9.-]+/g, '')) || 0;
+    totFun += parseFloat(String(rawFun).replace(/[^0-9.-]+/g, '')) || 0;
+    totFrek += parseFloat(String(rawFrek).replace(/[^0-9.-]+/g, '')) || 0;
   });
 
   setSafeText('tfoot-total-naskomgen', totNas.toLocaleString('id-ID'));
   setSafeText('tfoot-total-funkomgen', totFun.toLocaleString('id-ID'));
   setSafeText('tfoot-total-frek', totFrek.toLocaleString('id-ID'));
 
-  setSafeText('page-info-text', `Menampilkan ${total > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + pageSize, total)} dari ${total.toLocaleString('id-ID')} agen`);
-  setSafeText('page-current-num', `Halaman ${page} / ${totalPages}`);
-  document.getElementById('btn-page-prev').disabled = (page <= 1);
-  document.getElementById('btn-page-next').disabled = (page >= totalPages);
+
 }
 
 // TABEL 4: Rekapitulasi Kuadran A & C per Unit
@@ -595,8 +772,8 @@ function renderChart() {
       datasets: [{
         label: 'Kuadran A & C',
         data,
-        backgroundColor: 'rgba(56, 189, 248, 0.75)',
-        borderColor: '#38bdf8',
+        backgroundColor: '#38bdf8',
+        borderColor: '#0284c7',
         borderWidth: 1.5,
         borderRadius: 4
       }]

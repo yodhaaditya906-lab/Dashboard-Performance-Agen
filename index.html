@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Custom Styles (Matching Dashboard Merchant) -->
-  <link rel="stylesheet" href="styles.css?v=1.0">
+  <link rel="stylesheet" href="styles.css?v=3.0">
 </head>
 <body class="powerbi-theme">
 
@@ -23,8 +23,7 @@
   <header class="top-live-bar">
     <div class="brand-left">
       <div class="mandiri-brand">
-        <span class="mandiri-logo-text">mandırı</span>
-        <span class="mandiri-wave"></span>
+        <img src="mandiri_logo.png" alt="Bank Mandiri" class="mandiri-logo-img" />
       </div>
       <div class="brand-divider"></div>
       <div class="dashboard-title-group">
@@ -95,28 +94,52 @@
         </div>
       </div>
 
-      <!-- TABEL 2: REFERENSI UNIT (KODE UNIT, NAMA UNIT) -->
-      <div class="panel-card panel-right-top">
-        
+      <!-- TABEL 2: MENU PENCARIAN & SELEKSI UNIT (SEARCH BAR + DROPDOWN + DAFTAR KLIK) -->
+      <div class="panel-card panel-right-top unit-search-panel">
+        <!-- Status Box: Unit Terpilih & Reset Button -->
+        <div class="unit-panel-header">
+          <div class="unit-selected-info">
+            <span class="unit-selected-label">UNIT AKTIF:</span>
+            <span class="unit-selected-name" id="selected-unit-name">Semua Unit (99 Unit)</span>
+          </div>
+          <div class="unit-header-actions">
+            <span class="unit-agent-badge" id="selected-unit-badge">3.366 Agen</span>
+            <button type="button" id="btn-reset-unit" class="btn-unit-reset hidden" title="Tampilkan Semua Unit">✕ Reset</button>
+          </div>
+        </div>
 
-        <div class="table-wrapper custom-scrollbar">
-          <table class="data-table table-unit-ref">
+        <!-- Controls: Search Bar & Dropdown -->
+        <div class="unit-controls-bar">
+          <div class="unit-search-wrapper">
+            <span class="unit-search-icon">🔍</span>
+            <input type="text" id="unit-search-input" class="unit-search-input" placeholder="Cari Kode / Nama Unit..." autocomplete="off">
+            <button type="button" id="btn-clear-unit-search" class="btn-clear-search hidden" title="Hapus Pencarian">✕</button>
+          </div>
+          <div class="unit-select-wrapper">
+            <select id="unit-dropdown-select" class="unit-dropdown-select">
+              <option value="">-- Semua Unit (99 Unit) --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Interactive Unit List Table -->
+        <div class="table-wrapper unit-list-wrapper custom-scrollbar">
+          <table class="data-table table-unit-selector">
             <thead>
               <tr>
-                <th class="th-kode-unit">Kode Unit</th>
-                <th class="th-nama-unit">Nama Unit</th>
+                <th class="th-sel-code">Kode</th>
+                <th class="th-sel-name">Nama Unit</th>
+                <th class="th-sel-count">Agen</th>
               </tr>
             </thead>
-            
-            <tbody id="tbody-unit-ref">
-              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
-              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
-              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
+            <tbody id="tbody-unit-selector">
+              <tr class="placeholder-row"><td class="text-center">-</td><td>Memuat unit...</td><td class="text-center">-</td></tr>
             </tbody>
             <tfoot>
               <tr class="tfoot-total-row">
-                <td class="td-total-label">Total Unit</td>
-                <td id="tfoot-total-unit-ref">0 Unit</td>
+                <td class="td-total-label">Total</td>
+                <td id="tfoot-unit-count">99 Unit</td>
+                <td id="tfoot-unit-agents-total" class="text-center">3.366</td>
               </tr>
             </tfoot>
           </table>
@@ -148,26 +171,25 @@
           <table class="data-table table-agents-detail">
             <thead>
               <tr>
+                <th class="th-col-no text-center">No.</th>
                 <th class="th-col-sgp">Nama SGP</th>
-                <th class="th-col-kode">Kode Agen</th>
+                <th class="th-col-kode text-center">Kode Agen</th>
                 <th class="th-col-usaha">Nama Usaha Agen</th>
                 <th class="th-col-pemilik">Nama Pemilik Agen</th>
-                <th class="th-col-naskomgen">Nas komgen</th>
-                <th class="th-col-funkomgen">Funkomgen</th>
-                <th class="th-col-frek">Frek + Ref</th>
+                <th class="th-col-naskomgen text-center">Nas komgen</th>
+                <th class="th-col-funkomgen text-center">Funkomgen</th>
+                <th class="th-col-frek text-center">Frek + Ref</th>
               </tr>
             </thead>
             
             <tbody id="tbody-agents-main">
-              <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-              <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-              <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-              <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
-              <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+              <tr class="placeholder-row"><td class="text-center">-</td><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
             </tbody>
             <tfoot>
               <tr class="tfoot-total-row">
-                <td colspan="4" class="td-total-label">Total / Ringkasan</td>
+                <td colspan="5" class="td-total-label">Total / Ringkasan</td>
                 <td id="tfoot-total-naskomgen">0</td>
                 <td id="tfoot-total-funkomgen">0</td>
                 <td id="tfoot-total-frek">0</td>
@@ -176,14 +198,7 @@
           </table>
         </div>
 
-        <div class="table-pagination-bar">
-          <span class="page-info" id="page-info-text">Menampilkan 0 dari 0 data</span>
-          <div class="pagination-buttons">
-            <button id="btn-page-prev" class="btn-page" disabled>&laquo; Sebelumnya</button>
-            <span class="page-current" id="page-current-num">Halaman 1</span>
-            <button id="btn-page-next" class="btn-page" disabled>Berikutnya &raquo;</button>
-          </div>
-        </div>
+
       </div>
     </section>
 
@@ -285,19 +300,9 @@
     </div>
   </div>
 
-  <!-- REGULATORY FOOTER (Bank Mandiri Brand Guideline Mandatory) -->
-  <footer class="mandiri-footer">
-    <div class="footer-content">
-      <div class="footer-regulatory">
-        PT Bank Mandiri (Persero) Tbk. Berizin dan Diawasi oleh Otoritas Jasa Keuangan (OJK) dan Bank Indonesia (BI), Serta Merupakan Peserta Penjaminan LPS.
-      </div>
-      <div class="footer-lps">
-        Maksimum nilai simpanan yang dijamin LPS per Nasabah per Bank adalah Rp 2 Miliar. &bull; Regional V / Jakarta 3 &copy; 2026
-      </div>
-    </div>
-  </footer>
+
 
   <!-- App Script -->
-  <script src="app.js?v=1.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

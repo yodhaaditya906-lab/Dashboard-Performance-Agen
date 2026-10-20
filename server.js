@@ -24,7 +24,10 @@ const server = http.createServer((req, res) => {
 
   // API endpoints
   if (pathname === '/api/data' || pathname === '/api/config') {
-    return apiHandler(req, res);
+    try {
+      delete require.cache[require.resolve('./api/data.js')];
+    } catch (e) {}
+    return require('./api/data.js')(req, res);
   }
 
   if (pathname === '/') pathname = '/index.html';
