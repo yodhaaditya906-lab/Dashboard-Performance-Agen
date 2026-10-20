@@ -881,3 +881,12 @@ body.powerbi-theme {
   .top-live-bar { flex-direction: column; gap: 10px; align-items: flex-start; }
   .top-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
 }
+
+
+.main-table-toolbar {
+  padding: 10px 16px;
+  background: rgba(2, 6, 18, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: flex-end;
+}
