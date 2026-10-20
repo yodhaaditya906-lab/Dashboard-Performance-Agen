@@ -1,3 +1,8 @@
+
+function setSafeText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
 // Bank Mandiri - Dashboard Performance Agen
 // State Management
 const state = {
@@ -348,60 +353,46 @@ function renderAll() {
 }
 
 function renderEmptyStates() {
-  // KPI cards removed
+  const t1 = document.getElementById('tbody-monthly-kuadran');
+  if (t1) {
+    t1.innerHTML = `
+      <tr class="placeholder-row"><td class="td-unit">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td class="td-unit">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td class="td-unit">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+    `;
+  }
 
-  document.getElementById('tbody-monthly-kuadran').innerHTML = `
-    <tr class="empty-row">
-      <td colspan="5" class="td-empty-state">
-        <div class="empty-state-content">
-          <span class="empty-icon">📊</span>
-          <p class="empty-title">Data Unit & Kuadran Masih Kosong</p>
-          <p class="empty-desc">Hubungkan Google Sheet untuk mengisi tabel perbandingan kuadran secara otomatis.</p>
-        </div>
-      </td>
-    </tr>`;
+  const t2 = document.getElementById('tbody-unit-ref');
+  if (t2) {
+    t2.innerHTML = `
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
+      <tr class="placeholder-row"><td class="text-center">-</td><td>-</td></tr>
+    `;
+  }
 
-  document.getElementById('tbody-unit-ref').innerHTML = `
-    <tr class="empty-row">
-      <td colspan="2" class="td-empty-state">
-        <div class="empty-state-content">
-          <span class="empty-icon">🏢</span>
-          <p class="empty-title">Data Referensi Unit Belum Ada</p>
-          <p class="empty-desc">Daftar Kode & Nama Unit akan terisi otomatis setelah Google Sheet tersinkron.</p>
-        </div>
-      </td>
-    </tr>`;
+  const t3 = document.getElementById('tbody-agents-main');
+  if (t3) {
+    t3.innerHTML = `
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td><td>-</td><td>-</td><td class="text-center">-</td><td class="text-center">-</td><td class="text-center">-</td></tr>
+    `;
+  }
 
-  document.getElementById('tbody-agents-main').innerHTML = `
-    <tr class="empty-row">
-      <td colspan="7" class="td-empty-state large-empty">
-        <div class="empty-state-content">
-          <span class="empty-icon">📋</span>
-          <h4 class="empty-title">Tabel Siap Menerima Data Performance Agen</h4>
-          <p class="empty-desc">
-            Format 7 kolom telah siap: 
-            <b>Nama SGP &bull; Kode Agen &bull; Nama Usaha Agen &bull; Nama Pemilik Agen &bull; Nas komgen &bull; Funkomgen &bull; Frek + Ref</b>.
-          </p>
-          <p class="empty-instruction">
-            Klik tombol <b>"Hubungkan Google Sheet"</b> di pojok kanan atas untuk memasukkan link spreadsheet kamu.
-          </p>
-        </div>
-      </td>
-    </tr>`;
+  const t4 = document.getElementById('tbody-summary-kuadran');
+  if (t4) {
+    t4.innerHTML = `
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td></tr>
+      <tr class="placeholder-row"><td>-</td><td class="text-center">-</td></tr>
+    `;
+  }
 
-  document.getElementById('tbody-summary-kuadran').innerHTML = `
-    <tr class="empty-row">
-      <td colspan="2" class="td-empty-state">
-        <div class="empty-state-content">
-          <span class="empty-icon">📑</span>
-          <p class="empty-title">Belum Ada Rekapitulasi</p>
-          <p class="empty-desc">Data Kuadran A &amp; C per unit akan dikalkulasi otomatis saat data masuk.</p>
-        </div>
-      </td>
-    </tr>`;
-
-  document.getElementById('agent-count-badge').textContent = '0 Agen';
-  document.getElementById('page-info-text').textContent = 'Menampilkan 0 dari 0 data';
+  setSafeText('page-info-text', 'Menampilkan 0 dari 0 data');
+  setSafeText('page-current-num', 'Halaman 1');
 }
 
 function renderKPIs() {
@@ -442,10 +433,10 @@ function renderTableMonthlyKuadran(filterQuery = '') {
     `;
   }).join('');
 
-  document.getElementById('tfoot-sept-a').textContent = totSeptA.toLocaleString('id-ID');
-  document.getElementById('tfoot-sept-c').textContent = totSeptC.toLocaleString('id-ID');
-  document.getElementById('tfoot-okt-a').textContent = totOktA.toLocaleString('id-ID');
-  document.getElementById('tfoot-okt-c').textContent = totOktC.toLocaleString('id-ID');
+  setSafeText('tfoot-sept-a', totSeptA.toLocaleString('id-ID'));
+  setSafeText('tfoot-sept-c', totSeptC.toLocaleString('id-ID'));
+  setSafeText('tfoot-okt-a', totOktA.toLocaleString('id-ID'));
+  setSafeText('tfoot-okt-c', totOktC.toLocaleString('id-ID'));
 }
 
 // TABEL 2: Referensi Unit (Kode Unit, Nama Unit)
@@ -470,7 +461,7 @@ function renderTableUnitRef(filterQuery = '') {
     </tr>
   `).join('');
 
-  document.getElementById('tfoot-total-unit-ref').textContent = `${list.length} Unit`;
+  setSafeText('tfoot-total-unit-ref', `${list.length} Unit`);
 }
 
 // TABEL 3: Main Performance Agen
@@ -498,7 +489,7 @@ function renderMainTable() {
   });
 
   const total = list.length;
-  document.getElementById('agent-count-badge').textContent = `${total.toLocaleString('id-ID')} Agen`;
+  setSafeText('agent-count-badge', `${total.toLocaleString('id-ID')} Agen`);
 
   const { page, pageSize } = state.pagination;
   const totalPages = Math.ceil(total / pageSize) || 1;
@@ -544,13 +535,12 @@ function renderMainTable() {
     totFrek += parseFloat(getVal(r, ['frek + ref', 'frek', 'transaksi']).replace(/[^0-9.-]+/g, '')) || 0;
   });
 
-  document.getElementById('tfoot-total-naskomgen').textContent = totNas.toLocaleString('id-ID');
-  document.getElementById('tfoot-total-funkomgen').textContent = totFun.toLocaleString('id-ID');
-  document.getElementById('tfoot-total-frek').textContent = totFrek.toLocaleString('id-ID');
+  setSafeText('tfoot-total-naskomgen', totNas.toLocaleString('id-ID'));
+  setSafeText('tfoot-total-funkomgen', totFun.toLocaleString('id-ID'));
+  setSafeText('tfoot-total-frek', totFrek.toLocaleString('id-ID'));
 
-  document.getElementById('page-info-text').textContent = 
-    `Menampilkan ${total > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + pageSize, total)} dari ${total.toLocaleString('id-ID')} agen`;
-  document.getElementById('page-current-num').textContent = `Halaman ${page} / ${totalPages}`;
+  setSafeText('page-info-text', `Menampilkan ${total > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + pageSize, total)} dari ${total.toLocaleString('id-ID')} agen`);
+  setSafeText('page-current-num', `Halaman ${page} / ${totalPages}`);
   document.getElementById('btn-page-prev').disabled = (page <= 1);
   document.getElementById('btn-page-next').disabled = (page >= totalPages);
 }
@@ -579,7 +569,7 @@ function renderTableSummaryKuadran() {
     `;
   }).join('');
 
-  document.getElementById('tfoot-sum-ac-total').textContent = grandTotalAC.toLocaleString('id-ID');
+  setSafeText('tfoot-sum-ac-total', grandTotalAC.toLocaleString('id-ID'));
 }
 
 // Performance Chart

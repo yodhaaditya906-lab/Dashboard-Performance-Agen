@@ -890,3 +890,102 @@ body.powerbi-theme {
   display: flex;
   justify-content: flex-end;
 }
+
+
+/* ==========================================================================
+   BALANCED TYPOGRAPHY & PROPORTIONS
+   ========================================================================== */
+.powerbi-canvas {
+  max-width: 1320px !important;
+  gap: 16px !important;
+}
+
+/* Bigger, clearer table headers */
+.data-table {
+  font-size: 13.5px !important;
+}
+
+.data-table th {
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  padding: 10px 14px !important;
+  letter-spacing: 0.3px;
+}
+
+.th-month-sept, .th-month-okt {
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+}
+
+.th-sub-kuadran {
+  font-size: 13px !important;
+  padding: 6px 12px !important;
+}
+
+.data-table td {
+  font-size: 13px !important;
+  padding: 9px 14px !important;
+}
+
+.tfoot-total-row td {
+  font-size: 13.5px !important;
+  padding: 10px 14px !important;
+}
+
+/* Compact panel cards */
+.panel-card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.grid-top-row {
+  grid-template-columns: 1.5fr 1fr !important;
+  gap: 16px !important;
+  align-items: start;
+}
+
+.grid-bottom-row {
+  grid-template-columns: 1fr 1.1fr !important;
+  gap: 16px !important;
+  align-items: start;
+}
+
+/* Placeholder rows matching Figma */
+.placeholder-row td {
+  color: #475569 !important;
+  background: rgba(8, 23, 56, 0.4) !important;
+  height: 38px;
+}
+
+.placeholder-row:nth-child(even) td {
+  background: rgba(5, 15, 36, 0.4) !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+/* Main Table Toolbar */
+.main-table-toolbar {
+  padding: 8px 14px !important;
+  gap: 10px;
+}
+
+.search-box {
+  width: 280px !important;
+  padding: 6px 12px !important;
+}
+
+.search-box input {
+  font-size: 13px !important;
+}
+
+.custom-select {
+  font-size: 13px !important;
+  padding: 6px 12px !important;
+}
+
+/* Status message */
+.live-status {
+  font-size: 13px !important;
+  font-weight: 500;
+}
