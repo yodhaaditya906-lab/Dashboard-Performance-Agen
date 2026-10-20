@@ -231,6 +231,154 @@ function setupEventListeners() {
   }
 }
 
+
+// ==========================================================================
+// DIRECT GOOGLE SHEETS FALLBACK (Enables 100% hosting on Vercel / GitHub Pages)
+// ==========================================================================
+const GOOGLE_SHEET_FALLBACK = {
+  sheetId: '18bjhmtgQa1z0HRb3JPACIhhHPP8bqfNUsUczslffisg',
+  gidAC: '1049890682',
+  gidDB: '0',
+  gidAgents: '285705934',
+  gidRank: '678627785'
+};
+
+function parseCsvDirect(line) {
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(cur.trim().replace(/^"|"$/g, ''));
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim().replace(/^"|"$/g, ''));
+  return result;
+}
+
+async function fetchDirectGoogleSheets() {
+  const { sheetId, gidAC, gidDB, gidAgents, gidRank } = GOOGLE_SHEET_FALLBACK;
+  const fetchCsvText = async (gid) => {
+    const u = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+    const r = await fetch(u);
+    return await r.text();
+  };
+
+  try {
+    const [acCsv, dbCsv, agentsCsv, rankCsv] = await Promise.all([
+      fetchCsvText(gidAC).catch(() => ''),
+      fetchCsvText(gidDB).catch(() => ''),
+      fetchCsvText(gidAgents).catch(() => ''),
+      fetchCsvText(gidRank).catch(() => '')
+    ]);
+
+    // 1. Table 1: Monthly Kuadran
+    const table1_monthly = [];
+    if (acCsv) {
+      const acLines = acCsv.split(/\r?\n/).filter(l => l.trim().length > 0);
+      for (let i = 2; i < acLines.length; i++) {
+        const p = parseCsvDirect(acLines[i]);
+        const unit = p[0];
+        const uUpper = (unit || '').toUpperCase().trim();
+        if (!unit || uUpper.includes('TOTAL') || uUpper.includes('#N/A') || uUpper.includes('#REF') || uUpper === '#N/A') continue;
+        table1_monthly.push({
+          unit,
+          septA: parseInt(p[1], 10) || 0,
+          septC: parseInt(p[2], 10) || 0,
+          oktA: parseInt(p[3], 10) || 0,
+          oktC: parseInt(p[4], 10) || 0
+        });
+      }
+    }
+
+    // 2. Table 2: Units from Database
+    const unitCodeToName = new Map();
+    if (dbCsv) {
+      const dbLines = dbCsv.split(/\r?\n/).filter(l => l.trim().length > 0);
+      for (let i = 0; i < dbLines.length; i++) {
+        const p = parseCsvDirect(dbLines[i]);
+        const code = p[0];
+        const name = p[1];
+        if (code && name && !name.startsWith('#') && !unitCodeToName.has(code)) {
+          unitCodeToName.set(code, name);
+        }
+      }
+    }
+    const table2_units = Array.from(unitCodeToName.entries()).map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    // 3. Table 3: Agents Table
+    const table3_agents = [];
+    if (agentsCsv) {
+      const agentLines = agentsCsv.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (agentLines.length > 0) {
+        const headers = parseCsvDirect(agentLines[0]);
+        for (let i = 1; i < agentLines.length; i++) {
+          const p = parseCsvDirect(agentLines[i]);
+          if (p.length === 0 || !p[2]) continue;
+          const row = {};
+          headers.forEach((h, idx) => {
+            row[h] = p[idx] !== undefined ? p[idx] : '';
+          });
+          const pic = row['PIC'] || '';
+          let matchedUnitName = '';
+          let matchedUnitCode = '';
+          for (const [c, n] of unitCodeToName.entries()) {
+            if (pic.includes(c)) {
+              matchedUnitName = n;
+              matchedUnitCode = c;
+              break;
+            }
+          }
+          row['Nama Unit'] = matchedUnitName || row['Nama Unit'] || '';
+          row['Kode Unit'] = matchedUnitCode || row['Kode Unit'] || '';
+          table3_agents.push(row);
+        }
+      }
+    }
+
+    // 4. Table 4: Rank
+    const table4_rank = [];
+    if (rankCsv) {
+      const rankLines = rankCsv.split(/\r?\n/).filter(l => l.trim().length > 0);
+      for (let i = 1; i < rankLines.length; i++) {
+        const p = parseCsvDirect(rankLines[i]);
+        const unit = p[0];
+        const uUpper = (unit || '').toUpperCase().trim();
+        if (!unit || uUpper.includes('TOTAL') || uUpper.includes('#N/A') || uUpper.includes('#REF') || uUpper === '#N/A') continue;
+        table4_rank.push({
+          unit,
+          totalAC: parseInt(p[1], 10) || 0
+        });
+      }
+    }
+
+    return {
+      success: true,
+      hasData: table3_agents.length > 0 || table1_monthly.length > 0,
+      table1_monthly,
+      table2_units,
+      table3_agents,
+      table4_rank,
+      source: 'Google Sheets (Direct Client)'
+    };
+  } catch (err) {
+    console.error('Direct Google Sheets fetch error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 async function fetchDashboardData(force = false) {
   const pulseDot = document.getElementById('pulse-dot');
   const syncText = document.getElementById('sync-status-text');

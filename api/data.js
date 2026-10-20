@@ -17,7 +17,7 @@ function getConfig() {
     console.error('Error reading config.json:', err.message);
   }
   return {
-    sheetUrl: '',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/18bjhmtgQa1z0HRb3JPACIhhHPP8bqfNUsUczslffisg/edit?usp=sharing',
     lastSyncTime: null,
     dashboardTitle: 'Dashboard Performance Agen Mandiri'
   };
