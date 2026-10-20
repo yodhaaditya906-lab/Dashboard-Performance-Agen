@@ -1,0 +1,13 @@
+{
+  "name": "dashboard-performance-agen",
+  "version": "1.0.0",
+  "description": "Bank Mandiri - Dashboard Performance Agen",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["mandiri", "agen", "dashboard", "performance"],
+  "author": "Bank Mandiri Reg V / Jak 3",
+  "license": "ISC"
+}

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bank Mandiri - Dashboard Performance Agen</title>
+
+  <!-- Google Fonts: Inter & Segoe UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- SheetJS & ExcelJS for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Custom Styles (Matching Dashboard Merchant) -->
+  <link rel="stylesheet" href="styles.css?v=1.0">
+</head>
+<body class="powerbi-theme">
+
+  <!-- TOP LIVE BAR (Exact match to Dashboard Merchant) -->
+  <header class="top-live-bar">
+    <div class="brand-left">
+      <div class="mandiri-brand">
+        <span class="mandiri-logo-text">mandırı</span>
+        <span class="mandiri-wave"></span>
+      </div>
+      <div class="brand-divider"></div>
+      <div class="dashboard-title-group">
+        <h1 class="dash-title">DASHBOARD PERFORMANCE AGEN</h1>
+        <span class="dash-sub">REGIONAL V / JAKARTA 3 &bull; MONITORING KUADRAN AGEN</span>
+      </div>
+    </div>
+
+    <div class="live-status">
+      <span class="status-pulse" id="pulse-dot"></span>
+      <span id="sync-status-text">Menunggu Data Google Sheet...</span>
+    </div>
+
+    <div class="top-actions">
+      <button id="btn-open-config" class="btn-live-action btn-config" title="Hubungkan Link Google Sheet">
+        <span>🔗</span> Hubungkan Google Sheet
+      </button>
+      <button id="btn-sync-now" class="btn-live-action" title="Refresh data sekarang">
+        <span id="btn-sync-icon" class="sync-icon">🔄</span> Refresh
+      </button>
+      <button id="btn-export-excel" class="btn-live-action btn-excel" title="Download Excel">
+        <span>📊</span> Export Excel
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CANVAS -->
+  <main class="powerbi-canvas">
+
+    <!-- KPI STATS SUMMARY CARDS -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">TOTAL AGEN</span>
+          <span class="kpi-icon">👥</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-agen">0</div>
+        <div class="kpi-sub">Agen Terdaftar</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">TOTAL UNIT KERJA</span>
+          <span class="kpi-icon">🏢</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-unit">0</div>
+        <div class="kpi-sub">Unit Terpantau</div>
+      </div>
+
+      <div class="kpi-card accent-purple">
+        <div class="kpi-header">
+          <span class="kpi-label">SEPTEMBER (A & C)</span>
+          <span class="kpi-icon">📈</span>
+        </div>
+        <div class="kpi-value" id="kpi-kuadran-sept">0</div>
+        <div class="kpi-sub"><span id="kpi-sept-a">A: 0</span> &bull; <span id="kpi-sept-c">C: 0</span></div>
+      </div>
+
+      <div class="kpi-card accent-gold">
+        <div class="kpi-header">
+          <span class="kpi-label">OKTOBER (A & C)</span>
+          <span class="kpi-icon">⭐</span>
+        </div>
+        <div class="kpi-value" id="kpi-kuadran-okt">0</div>
+        <div class="kpi-sub"><span id="kpi-okt-a">A: 0</span> &bull; <span id="kpi-okt-c">C: 0</span></div>
+      </div>
+
+      <div class="kpi-card accent-cyan">
+        <div class="kpi-header">
+          <span class="kpi-label">TOTAL FREK + REF</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-frek">0</div>
+        <div class="kpi-sub">Akumulasi Transaksi</div>
+      </div>
+    </section>
+
+    <!-- SECTION 1: TOP TABLES (FIGMA WIREFRAME ROW 1) -->
+    <section class="grid-top-row">
+      
+      <!-- TABEL 1: ANALISIS KUADRAN BULANAN (NAMA UNIT, SEPT A/C, OKT A/C) -->
+      <div class="panel-card panel-left-top">
+        <div class="panel-header header-purple">
+          <div class="header-title">
+            <span class="badge-dot dot-purple"></span>
+            <h3>Tabel Analisis Kuadran Bulanan per Unit</h3>
+          </div>
+          <div class="panel-actions">
+            <input type="text" id="search-unit-kuadran" class="table-quick-search" placeholder="Cari unit..." />
+          </div>
+        </div>
+
+        <div class="table-wrapper custom-scrollbar">
+          <table class="data-table table-monthly-kuadran">
+            <thead>
+              <tr>
+                <th rowspan="2" class="th-unit-name">Nama Unit</th>
+                <th colspan="2" class="th-month-sept">Sept</th>
+                <th colspan="2" class="th-month-okt">Okt</th>
+              </tr>
+              <tr>
+                <th class="th-sub-kuadran">A</th>
+                <th class="th-sub-kuadran">C</th>
+                <th class="th-sub-kuadran">A</th>
+                <th class="th-sub-kuadran">C</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-monthly-kuadran">
+              <tr class="empty-row">
+                <td colspan="5" class="td-empty-state">
+                  <div class="empty-state-content">
+                    <span class="empty-icon">📊</span>
+                    <p class="empty-title">Data Unit & Kuadran Masih Kosong</p>
+                    <p class="empty-desc">Hubungkan Google Sheet untuk mengisi tabel perbandingan kuadran secara otomatis.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="tfoot-total-row">
+                <td class="td-total-label">Total</td>
+                <td id="tfoot-sept-a">0</td>
+                <td id="tfoot-sept-c">0</td>
+                <td id="tfoot-okt-a">0</td>
+                <td id="tfoot-okt-c">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABEL 2: REFERENSI UNIT (KODE UNIT, NAMA UNIT) -->
+      <div class="panel-card panel-right-top">
+        <div class="panel-header header-pink">
+          <div class="header-title">
+            <span class="badge-dot dot-pink"></span>
+            <h3>Tabel Referensi Unit</h3>
+          </div>
+          <div class="panel-actions">
+            <input type="text" id="search-unit-ref" class="table-quick-search" placeholder="Cari kode / nama unit..." />
+          </div>
+        </div>
+
+        <div class="table-wrapper custom-scrollbar">
+          <table class="data-table table-unit-ref">
+            <thead>
+              <tr>
+                <th class="th-kode-unit">Kode Unit</th>
+                <th class="th-nama-unit">Nama Unit</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-unit-ref">
+              <tr class="empty-row">
+                <td colspan="2" class="td-empty-state">
+                  <div class="empty-state-content">
+                    <span class="empty-icon">🏢</span>
+                    <p class="empty-title">Data Referensi Unit Belum Ada</p>
+                    <p class="empty-desc">Daftar Kode & Nama Unit akan terisi otomatis setelah Google Sheet tersinkron.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="tfoot-total-row">
+                <td class="td-total-label">Total Unit</td>
+                <td id="tfoot-total-unit-ref">0 Unit</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION 2: MAIN PERFORMANCE TABLE (FIGMA WIREFRAME ROW 2) -->
+    <section class="grid-middle-row">
+      <div class="panel-card panel-main-agents">
+        <div class="panel-header header-orange">
+          <div class="header-title">
+            <span class="badge-dot dot-orange"></span>
+            <h3>Tabel Detail Performance Agen</h3>
+            <span class="header-counter" id="agent-count-badge">0 Agen</span>
+          </div>
+          
+          <div class="filter-controls">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search-agent-main" placeholder="Cari Nama SGP, Kode Agen, Usaha, Pemilik..." />
+            </div>
+            
+            <select id="filter-select-unit" class="custom-select">
+              <option value="">Semua Unit</option>
+            </select>
+
+            <select id="filter-select-sgp" class="custom-select">
+              <option value="">Semua SGP</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrapper main-scroll custom-scrollbar">
+          <table class="data-table table-agents-detail">
+            <thead>
+              <tr>
+                <th class="th-col-sgp">Nama SGP</th>
+                <th class="th-col-kode">Kode Agen</th>
+                <th class="th-col-usaha">Nama Usaha Agen</th>
+                <th class="th-col-pemilik">Nama Pemilik Agen</th>
+                <th class="th-col-naskomgen">Nas komgen</th>
+                <th class="th-col-funkomgen">Funkomgen</th>
+                <th class="th-col-frek">Frek + Ref</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-agents-main">
+              <tr class="empty-row">
+                <td colspan="7" class="td-empty-state large-empty">
+                  <div class="empty-state-content">
+                    <span class="empty-icon">📋</span>
+                    <h4 class="empty-title">Tabel Siap Menerima Data Performance Agen</h4>
+                    <p class="empty-desc">
+                      Format 7 kolom telah siap: 
+                      <b>Nama SGP &bull; Kode Agen &bull; Nama Usaha Agen &bull; Nama Pemilik Agen &bull; Nas komgen &bull; Funkomgen &bull; Frek + Ref</b>.
+                    </p>
+                    <p class="empty-instruction">
+                      Klik tombol <b>"Hubungkan Google Sheet"</b> di pojok kanan atas untuk memasukkan link spreadsheet kamu.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="tfoot-total-row">
+                <td colspan="4" class="td-total-label">Total / Ringkasan</td>
+                <td id="tfoot-total-naskomgen">0</td>
+                <td id="tfoot-total-funkomgen">0</td>
+                <td id="tfoot-total-frek">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="table-pagination-bar">
+          <span class="page-info" id="page-info-text">Menampilkan 0 dari 0 data</span>
+          <div class="pagination-buttons">
+            <button id="btn-page-prev" class="btn-page" disabled>&laquo; Sebelumnya</button>
+            <span class="page-current" id="page-current-num">Halaman 1</span>
+            <button id="btn-page-next" class="btn-page" disabled>Berikutnya &raquo;</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: BOTTOM ROW (FIGMA WIREFRAME ROW 3) -->
+    <section class="grid-bottom-row">
+
+      <!-- TABEL 4: REKAPITULASI KUADRAN A & C PER UNIT (BOTTOM LEFT) -->
+      <div class="panel-card panel-left-bottom">
+        <div class="panel-header header-yellow">
+          <div class="header-title">
+            <span class="badge-dot dot-yellow"></span>
+            <h3>Rekapitulasi Kuadran A &amp; C per Unit</h3>
+          </div>
+        </div>
+
+        <div class="table-wrapper custom-scrollbar">
+          <table class="data-table table-summary-kuadran">
+            <thead>
+              <tr>
+                <th class="th-sum-unit">Nama Unit</th>
+                <th class="th-sum-kuadran">Kuadran A &amp; C</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-summary-kuadran">
+              <tr class="empty-row">
+                <td colspan="2" class="td-empty-state">
+                  <div class="empty-state-content">
+                    <span class="empty-icon">📑</span>
+                    <p class="empty-title">Belum Ada Rekapitulasi</p>
+                    <p class="empty-desc">Data Kuadran A &amp; C per unit akan dikalkulasi otomatis saat data masuk.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="tfoot-total-row highlight-yellow">
+                <td class="td-total-label">Jumlah Kuadran A &amp; C</td>
+                <td id="tfoot-sum-ac-total">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- VISUALISASI & PERFORMANCE INSIGHTS (BOTTOM RIGHT) -->
+      <div class="panel-card panel-right-bottom">
+        <div class="panel-header header-blue">
+          <div class="header-title">
+            <span class="badge-dot dot-blue"></span>
+            <h3>Visualisasi &amp; Distribusi Performance</h3>
+          </div>
+        </div>
+
+        <div class="chart-content-area">
+          <div class="chart-placeholder" id="chart-container">
+            <canvas id="performanceChart" style="max-height: 240px;"></canvas>
+            <div class="chart-empty-notice" id="chart-empty-notice">
+              <span>📊</span>
+              <p>Grafik akan aktif secara otomatis setelah data Google Sheet terhubung</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL: HUBUNGKAN GOOGLE SHEET -->
+  <div id="modal-config" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">🔗</span>
+          <h3>Hubungkan Google Sheet Data Agen</h3>
+        </div>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-intro">
+          Masukkan URL link Google Sheet yang memuat data <b>Performance Agen</b>. 
+          Pastikan link diset ke <code>Anyone with the link can view (Siapa saja yang memiliki link dapat melihat)</code>.
+        </p>
+
+        <div class="form-group">
+          <label for="input-sheet-url">URL Google Sheet:</label>
+          <input 
+            type="text" 
+            id="input-sheet-url" 
+            class="form-control" 
+            placeholder="https://docs.google.com/spreadsheets/d/1.../edit?usp=sharing" 
+          />
+        </div>
+
+        <div class="hint-box">
+          <div class="hint-title">💡 Petunjuk Kolom Spreadsheet:</div>
+          <p>
+            Sistem otomatis mengenali kolom header: 
+            <code>Nama SGP</code>, <code>Kode Agen</code>, <code>Nama Usaha Agen</code>, <code>Nama Pemilik Agen</code>, 
+            <code>Nas komgen</code>, <code>Funkomgen</code>, <code>Frek + Ref</code>, <code>Nama Unit</code>, <code>Kode Unit</code>, dan <code>Kuadran</code>.
+          </p>
+        </div>
+
+        <div id="modal-status-msg" class="modal-status-msg"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-cancel-modal" class="btn-modal btn-secondary">Batal</button>
+        <button id="btn-save-sheet-url" class="btn-modal btn-primary">
+          <span class="btn-icon">💾</span> Simpan &amp; Sinkronisasi Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGULATORY FOOTER (Bank Mandiri Brand Guideline Mandatory) -->
+  <footer class="mandiri-footer">
+    <div class="footer-content">
+      <div class="footer-regulatory">
+        PT Bank Mandiri (Persero) Tbk. Berizin dan Diawasi oleh Otoritas Jasa Keuangan (OJK) dan Bank Indonesia (BI), Serta Merupakan Peserta Penjaminan LPS.
+      </div>
+      <div class="footer-lps">
+        Maksimum nilai simpanan yang dijamin LPS per Nasabah per Bank adalah Rp 2 Miliar. &bull; Regional V / Jakarta 3 &copy; 2026
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Script -->
+  <script src="app.js?v=1.0"></script>
+</body>
+</html>
