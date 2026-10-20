@@ -348,11 +348,7 @@ function renderAll() {
 }
 
 function renderEmptyStates() {
-  document.getElementById('kpi-total-agen').textContent = '0';
-  document.getElementById('kpi-total-unit').textContent = '0';
-  document.getElementById('kpi-kuadran-sept').textContent = '0';
-  document.getElementById('kpi-kuadran-okt').textContent = '0';
-  document.getElementById('kpi-total-frek').textContent = '0';
+  // KPI cards removed
 
   document.getElementById('tbody-monthly-kuadran').innerHTML = `
     <tr class="empty-row">
@@ -409,35 +405,7 @@ function renderEmptyStates() {
 }
 
 function renderKPIs() {
-  const totalAgen = state.rawRows.length;
-  const totalUnits = new Set(state.rawRows.map(r => getVal(r, ['nama unit', 'unit'])).filter(Boolean)).size;
-
-  let septA = 0, septC = 0, oktA = 0, oktC = 0, totalFrek = 0;
-
-  state.monthlyData.forEach(d => {
-    septA += d.septA;
-    septC += d.septC;
-    oktA += d.oktA;
-    oktC += d.oktC;
-  });
-
-  state.rawRows.forEach(r => {
-    const frek = parseFloat(getVal(r, ['frek + ref', 'frek', 'transaksi']).replace(/[^0-9.-]+/g, '')) || 0;
-    totalFrek += frek;
-  });
-
-  document.getElementById('kpi-total-agen').textContent = totalAgen.toLocaleString('id-ID');
-  document.getElementById('kpi-total-unit').textContent = totalUnits.toLocaleString('id-ID');
-  
-  document.getElementById('kpi-kuadran-sept').textContent = (septA + septC).toLocaleString('id-ID');
-  document.getElementById('kpi-sept-a').textContent = `A: ${septA}`;
-  document.getElementById('kpi-sept-c').textContent = `C: ${septC}`;
-
-  document.getElementById('kpi-kuadran-okt').textContent = (oktA + oktC).toLocaleString('id-ID');
-  document.getElementById('kpi-okt-a').textContent = `A: ${oktA}`;
-  document.getElementById('kpi-okt-c').textContent = `C: ${oktC}`;
-
-  document.getElementById('kpi-total-frek').textContent = totalFrek.toLocaleString('id-ID');
+  // KPI grid removed per user preference
 }
 
 // TABEL 1: Perbandingan Kuadran Bulanan (Sept vs Okt)
