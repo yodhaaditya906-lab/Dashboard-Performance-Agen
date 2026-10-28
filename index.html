@@ -15,9 +15,20 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Custom Styles (Matching Dashboard Merchant) -->
-  <link rel="stylesheet" href="styles.css?v=3.1">
+  <link rel="stylesheet" href="styles.css?v=3.3">
 </head>
 <body class="powerbi-theme">
+  <!-- MINIMALIST BLACK & WHITE CAPSULE LOADING SCREEN -->
+  <div id="app-loading-screen" class="app-loading-overlay">
+    <div class="minimal-loading-container">
+      <div class="minimal-loading-title">LOADING</div>
+      <div class="minimal-loading-capsule">
+        <div id="minimal-progress-fill" class="minimal-loading-fill" style="width: 10%;"></div>
+      </div>
+      <div id="minimal-loading-percent" class="minimal-loading-percent">10%</div>
+      <div id="loading-status-text" class="minimal-loading-status">Menghubungkan ke Google Sheets...</div>
+    </div>
+  </div>
 
   <!-- TOP LIVE BAR (Exact match to Dashboard Merchant) -->
   <header class="top-live-bar">
@@ -45,7 +56,7 @@
         <span id="btn-sync-icon" class="sync-icon">🔄</span> Refresh
       </button>
       <button id="btn-export-excel" class="btn-live-action btn-excel" title="Download Excel">
-        <span>📊</span> Export Excel
+         Export Excel
       </button>
     </div>
   </header>
@@ -172,13 +183,48 @@
             <thead>
               <tr>
                 <th class="th-col-no text-center">No.</th>
-                <th class="th-col-sgp">Nama SGP</th>
-                <th class="th-col-kode text-center">Kode Agen</th>
-                <th class="th-col-usaha">Nama Usaha Agen</th>
-                <th class="th-col-pemilik">Nama Pemilik Agen</th>
-                <th class="th-col-naskomgen text-center">Nas komgen</th>
-                <th class="th-col-funkomgen text-center">Funkomgen</th>
-                <th class="th-col-frek text-center">Frek + Ref</th>
+                <th class="th-col-sgp" data-col="sgp">
+                  <div class="th-content">
+                    <span>Nama SGP</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Nama SGP" data-col="sgp">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-kode text-center" data-col="kode">
+                  <div class="th-content">
+                    <span>Kode Agen</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Kode Agen" data-col="kode">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-usaha" data-col="usaha">
+                  <div class="th-content">
+                    <span>Nama Usaha Agen</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Nama Usaha Agen" data-col="usaha">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-pemilik" data-col="pemilik">
+                  <div class="th-content">
+                    <span>Nama Pemilik Agen</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Nama Pemilik Agen" data-col="pemilik">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-naskomgen text-center" data-col="naskomgen">
+                  <div class="th-content">
+                    <span>Nas komgen</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Nas komgen" data-col="naskomgen">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-funkomgen text-center" data-col="funkomgen">
+                  <div class="th-content">
+                    <span>Funkomgen</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Funkomgen" data-col="funkomgen">▼</button>
+                  </div>
+                </th>
+                <th class="th-col-frek text-center" data-col="frek">
+                  <div class="th-content">
+                    <span>Frek + Ref</span>
+                    <button class="col-filter-btn" title="Filter &amp; Urutkan Frek + Ref" data-col="frek">▼</button>
+                  </div>
+                </th>
               </tr>
             </thead>
             
@@ -189,7 +235,7 @@
             </tbody>
             <tfoot>
               <tr class="tfoot-total-row">
-                <td colspan="5" class="td-total-label">Total / Ringkasan</td>
+                <td colspan="5" class="td-total-label">Total</td>
                 <td id="tfoot-total-naskomgen">0</td>
                 <td id="tfoot-total-funkomgen">0</td>
                 <td id="tfoot-total-frek">0</td>
@@ -233,21 +279,75 @@
         </div>
       </div>
 
-      <!-- VISUALISASI & PERFORMANCE INSIGHTS (BOTTOM RIGHT) -->
+            <!-- VISUALISASI & PERFORMANCE INSIGHTS (BOTTOM RIGHT) -->
       <div class="panel-card panel-right-bottom">
-        
+        <div class="chart-header-tabs">
+          <div class="chart-title-area">
+                        <div class="chart-title-text">
+              <span class="chart-main-title">ANALISIS BISNIS &amp; KUADRAN AGEN</span>
+              <span class="chart-subtitle">Regional V / Jakarta 3</span>
+            </div>
+          </div>
+          
+          <div class="chart-nav-pills" id="chart-tab-pills">
+            <button type="button" class="chart-pill-btn active" data-tab="tab-tren">
+              <span>Tren Bulanan</span>
+            </button>
+            <button type="button" class="chart-pill-btn" data-tab="tab-ranking">
+              <span>Ranking Unit</span>
+            </button>
+            <button type="button" class="chart-pill-btn" data-tab="tab-top-agen">
+              <span>Top 10 Kontributor</span>
+            </button>
+          </div>
+        </div>
 
         <div class="chart-content-area">
-          <div class="chart-placeholder" id="chart-container">
-            <canvas id="performanceChart" style="max-height: 240px;"></canvas>
-            <div class="chart-empty-notice" id="chart-empty-notice">
-              <span>📊</span>
-              <p>Grafik akan aktif secara otomatis setelah data Google Sheet terhubung</p>
+          <!-- SUB-CONTROLS FOR TOP 10 KONTRIBUTOR -->
+          <div id="top-agen-controls" class="chart-sub-toolbar" style="display: none;">
+            <div class="sub-filter-group">
+              <label for="select-top-mode">Grup:</label>
+              <select id="select-top-mode" class="chart-select-mini">
+                <option value="sgp" selected>Top SGP</option>
+                <option value="outlet">Top Nama Usaha Agen</option>
+              </select>
             </div>
+            <div class="sub-filter-group">
+              <label for="select-top-metric">Metrik:</label>
+              <select id="select-top-metric" class="chart-select-mini">
+                <option value="frek" selected>Frek + Ref Input</option>
+                <option value="fun">Funding Naskomgen</option>
+                <option value="nas">Nas komgen</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- TAB 1: TREN BULANAN KUADRAN A VS C (Grouped Bar / Line) -->
+          <div class="chart-tab-pane active" id="pane-tab-tren">
+            <div class="chart-canvas-wrapper">
+              <canvas id="chartTrenBulanan"></canvas>
+            </div>
+          </div>
+
+          <!-- TAB 2: RANKING UNIT TERBAIK KUADRAN A & C (Horizontal Bar Chart) -->
+          <div class="chart-tab-pane" id="pane-tab-ranking">
+            <div class="chart-canvas-wrapper">
+              <canvas id="chartRankingUnit"></canvas>
+            </div>
+          </div>
+
+          <!-- TAB 3: TOP 10 KONTRIBUTOR SGP / OUTLET (Horizontal Bar Chart) -->
+          <div class="chart-tab-pane" id="pane-tab-top-agen">
+            <div class="chart-canvas-wrapper">
+              <canvas id="chartTopAgen"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-empty-notice" id="chart-empty-notice">
+                        <p>Grafik akan aktif secara otomatis setelah data Google Sheet terhubung</p>
           </div>
         </div>
       </div>
-
     </section>
 
   </main>
@@ -302,7 +402,10 @@
 
 
 
+  <!-- EXCEL COLUMN FILTER POPUP OVERLAY -->
+  <div id="column-filter-popup" class="excel-filter-popup hidden"></div>
+
   <!-- App Script -->
-  <script src="app.js?v=3.1"></script>
+  <script src="app.js?v=3.4"></script>
 </body>
 </html>

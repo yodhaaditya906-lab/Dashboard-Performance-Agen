@@ -539,15 +539,59 @@ body.powerbi-theme {
   vertical-align: middle;
 }
 
-/* Column Proportions - Optimized so large currency totals never fold */
+/* Column Proportions - Optimized so large currency totals never fold & filter buttons fit */
 .th-col-no { width: 42px !important; text-align: center !important; }
-.th-col-sgp { width: 135px !important; }
-.th-col-kode { width: 90px !important; text-align: center !important; }
-.th-col-usaha { width: 25% !important; }
-.th-col-pemilik { width: 21% !important; }
-.th-col-naskomgen { width: 85px !important; text-align: center !important; }
+.th-col-sgp { width: 145px !important; }
+.th-col-kode { width: 105px !important; text-align: center !important; }
+.th-col-usaha { width: 23% !important; }
+.th-col-pemilik { width: 20% !important; }
+.th-col-naskomgen { width: 110px !important; text-align: center !important; }
 .th-col-funkomgen { width: 155px !important; text-align: center !important; }
-.th-col-frek { width: 85px !important; text-align: center !important; }
+.th-col-frek { width: 110px !important; text-align: center !important; }
+
+/* Table Header Content & Excel Filter Buttons */
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.table-agents-detail th.text-center .th-content {
+  justify-content: space-between;
+}
+
+.col-filter-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  color: #ffffff;
+  font-size: 9px;
+  padding: 1px 4px;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.col-filter-btn:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.col-filter-btn.active {
+  background-color: #00f2fe !important;
+  color: #020617 !important;
+  border-color: #00f2fe !important;
+  font-weight: 900 !important;
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.8) !important;
+}
 
 /* Table Rows: Alternating Obsidian Black & Midnight Blue */
 .table-agents-detail td {
@@ -1283,3 +1327,459 @@ body.powerbi-theme {
 .table-focus-pulse {
   animation: tablePulse 1.2s ease-out;
 }
+
+
+/* ==========================================================================
+   FULLSCREEN MINIMALIST LOADING SCREEN (CLEAN WHITE - MATCHING DASHBOARD MERCHANT)
+   ========================================================================== */
+.app-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.app-loading-overlay.app-loading-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.minimal-spinner {
+  width: 76px;
+  height: 76px;
+  animation: spinnerRotateSteps 1s steps(12, end) infinite;
+}
+
+@keyframes spinnerRotateSteps {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  margin-top: 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: #111827;
+  letter-spacing: 0.2px;
+}
+
+/* ==========================================================================
+   MULTI-TAB BUSINESS ANALYTICS CHARTS (MANDIRI THEME)
+   ========================================================================== */
+.chart-header-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.chart-title-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-title-area .chart-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+}
+
+.chart-title-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-main-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.chart-subtitle {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.chart-nav-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-pill-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e3a6a;
+  color: #94a3b8;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-pill-btn:hover {
+  background: rgba(0, 120, 212, 0.2);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.chart-pill-btn.active {
+  background: linear-gradient(135deg, #0078d4, #0284c7);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 120, 212, 0.5);
+}
+
+.chart-sub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 6px;
+  background: rgba(2, 6, 23, 0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sub-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sub-filter-group label {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.chart-select-mini {
+  background-color: #0b1426;
+  color: #f8fafc;
+  border: 1px solid #1e3a6a;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-select-mini:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf8;
+}
+
+.chart-tab-pane {
+  display: none;
+  width: 100%;
+}
+
+.chart-tab-pane.active {
+  display: block;
+  animation: fadeInChart 0.25s ease-out;
+}
+
+@keyframes fadeInChart {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chart-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 250px;
+}
+
+/* ==========================================================================
+   EXCEL-STYLE COLUMN FILTERS & POPUP OVERLAY
+   ========================================================================== */
+.excel-filter-popup {
+  position: fixed;
+  z-index: 9999;
+  width: 250px;
+  background-color: #0b1329;
+  border: 1.5px solid #38bdf8;
+  border-radius: 8px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 15px rgba(56, 189, 248, 0.2);
+  padding: 10px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.excel-filter-popup.hidden {
+  display: none !important;
+}
+
+.excel-filter-sort-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.excel-filter-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #0f1d38;
+  border: 1px solid #1e3a6a;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.excel-filter-sort-btn:hover {
+  background-color: #1e2e4f;
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.excel-filter-sort-btn.active {
+  background-color: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.excel-filter-divider {
+  height: 1px;
+  background-color: #1e3a6a;
+  margin: 6px 0 8px 0;
+}
+
+.excel-filter-search-box {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #050b18;
+  border: 1px solid #334155;
+  color: #ffffff;
+  padding: 6px 9px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  margin-bottom: 8px;
+  outline: none;
+}
+
+.excel-filter-search-box:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+}
+
+.excel-filter-search-box::placeholder {
+  color: #64748b;
+}
+
+.excel-filter-list {
+  max-height: 165px;
+  overflow-y: auto;
+  background-color: #050b18;
+  border: 1px solid #1e3a6a;
+  border-radius: 5px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.excel-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11.5px;
+  color: #cbd5e1;
+}
+
+.excel-filter-item:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.excel-filter-item input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #00f2fe;
+}
+
+.excel-filter-item-text {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excel-filter-item-count {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.excel-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.excel-filter-action-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.excel-filter-btn-clear {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+}
+
+.excel-filter-btn-clear:hover {
+  background-color: #334155;
+  color: #ffffff;
+}
+
+.excel-filter-btn-apply {
+  background: linear-gradient(135deg, #0284c7 0%, #00f2fe 100%);
+  color: #020617;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+}
+
+.excel-filter-btn-apply:hover {
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.8);
+  filter: brightness(1.1);
+}
+
+/* ==========================================================================
+   MINIMALIST BLACK & WHITE CAPSULE LOADING OVERLAY
+   ========================================================================== */
+.app-loading-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.app-loading-overlay.app-loading-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.minimal-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  max-width: 540px;
+}
+
+.minimal-loading-title {
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 5px;
+  color: #000000;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  line-height: 1;
+}
+
+.minimal-loading-capsule {
+  width: 100%;
+  max-width: 520px;
+  height: 56px;
+  border: 4.5px solid #000000;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  padding: 4.5px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.minimal-loading-fill {
+  height: 100%;
+  width: 10%;
+  background-color: #000000;
+  border-radius: 9999px;
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.minimal-loading-percent {
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin-top: 16px;
+  letter-spacing: 0.5px;
+}
+
+.minimal-loading-status {
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666666;
+  margin-top: 8px;
+  letter-spacing: 0.2px;
+  transition: opacity 0.2s ease;
+}
+

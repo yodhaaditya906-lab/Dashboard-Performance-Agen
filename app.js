@@ -3,6 +3,83 @@ function setSafeText(id, text) {
   if (el) el.textContent = text;
 }
 
+// Minimalist Black & White Capsule Loading Screen Controllers
+let currentLoadingPercent = 0;
+let loadingProgressTimer = null;
+
+function setMinimalLoadingProgress(pct, statusMsg) {
+  const clampedPct = Math.min(100, Math.max(0, Math.round(pct)));
+  currentLoadingPercent = clampedPct;
+
+  const fillEl = document.getElementById('minimal-progress-fill');
+  const percentEl = document.getElementById('minimal-loading-percent');
+  const statusEl = document.getElementById('loading-status-text') || document.querySelector('.minimal-loading-status');
+
+  if (fillEl) {
+    fillEl.style.width = clampedPct + '%';
+  }
+  if (percentEl) {
+    percentEl.textContent = clampedPct + '%';
+  }
+  if (statusEl && statusMsg) {
+    statusEl.textContent = statusMsg;
+  }
+}
+
+function setLoadingScreenMessage(msg) {
+  const textEl = document.getElementById('loading-status-text') || document.querySelector('.minimal-loading-status');
+  if (textEl && msg) textEl.textContent = msg;
+}
+
+function startSmoothLoadingTicker() {
+  setMinimalLoadingProgress(10, 'Menghubungkan ke Server & Google Sheets...');
+
+  if (loadingProgressTimer) clearInterval(loadingProgressTimer);
+
+  loadingProgressTimer = setInterval(() => {
+    if (currentLoadingPercent < 88) {
+      const remaining = 90 - currentLoadingPercent;
+      const step = Math.max(1, Math.floor(remaining * 0.12));
+      const nextPct = currentLoadingPercent + step;
+
+      let msg = 'Menghubungkan ke Server & Google Sheets...';
+      if (nextPct >= 35 && nextPct < 65) {
+        msg = 'Mengunduh data performa agen...';
+      } else if (nextPct >= 65) {
+        msg = 'Menghitung kuadran & ranking unit...';
+      }
+      setMinimalLoadingProgress(nextPct, msg);
+    }
+  }, 120);
+}
+
+function hideAppLoadingScreen() {
+  const loadingScreen = document.getElementById('app-loading-screen');
+  if (!loadingScreen || loadingScreen.classList.contains('app-loading-hidden')) return;
+
+  if (loadingProgressTimer) {
+    clearInterval(loadingProgressTimer);
+    loadingProgressTimer = null;
+  }
+
+  setMinimalLoadingProgress(100, 'Data Siap! Membuka Dashboard...');
+
+  setTimeout(() => {
+    loadingScreen.classList.add('app-loading-hidden');
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+    }, 500);
+  }, 320);
+}
+
+// Start smooth progress ticker immediately on page load
+startSmoothLoadingTicker();
+
+// Safety net: force dismiss loading screen after 15s so user is never locked out
+setTimeout(hideAppLoadingScreen, 15000);
+
+
+
 // Bank Mandiri - Dashboard Performance Agen
 // State Management
 const state = {
@@ -15,6 +92,8 @@ const state = {
     unit: '',
     sgp: ''
   },
+  columnFilters: {},
+  columnSort: { colKey: null, direction: null },
   pagination: {
     page: 1,
     pageSize: 20
@@ -28,6 +107,7 @@ const state = {
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
+  initChartTabs();
   fetchDashboardData();
 });
 
@@ -229,6 +309,33 @@ function setupEventListeners() {
   if (btnExcel) {
     btnExcel.addEventListener('click', exportToExcel);
   }
+
+  // Excel Column Filter click & outside dismiss
+  document.addEventListener('click', (e) => {
+    const filterPopupEl = document.getElementById('column-filter-popup');
+    const btn = e.target.closest('.col-filter-btn');
+    if (btn) {
+      e.stopPropagation();
+      const colKey = btn.dataset.col;
+      if (activePopupColKey === colKey && filterPopupEl && !filterPopupEl.classList.contains('hidden')) {
+        closeColumnFilterPopup();
+      } else {
+        openColumnFilterPopup(colKey, btn);
+      }
+      return;
+    }
+
+    if (filterPopupEl && !e.target.closest('#column-filter-popup')) {
+      closeColumnFilterPopup();
+    }
+  });
+
+  window.addEventListener('resize', closeColumnFilterPopup);
+
+  const mainScroll = document.querySelector('.main-scroll');
+  if (mainScroll) {
+    mainScroll.addEventListener('scroll', closeColumnFilterPopup);
+  }
 }
 
 
@@ -387,6 +494,7 @@ async function fetchDashboardData(force = false) {
   if (pulseDot) pulseDot.classList.add('syncing');
   if (syncIcon) syncIcon.style.animation = 'spin 1s linear infinite';
   if (syncText) syncText.textContent = 'Menyinkronkan data Google Sheet...';
+  setLoadingScreenMessage('Menghubungkan ke Server & Google Sheets...');
 
   try {
     let result = null;
@@ -407,6 +515,7 @@ async function fetchDashboardData(force = false) {
 
     state.config = result.config || {};
     const rawList = result.table3_agents || result.rows || [];
+    setMinimalLoadingProgress(92, 'Memproses Data Kuadran Agen...');
 
     // Filter out rows where Nama SGP is empty / NULL / '-' per user request
     state.rawRows = rawList.filter(row => {
@@ -442,6 +551,7 @@ async function fetchDashboardData(force = false) {
       if (syncText) syncText.textContent = `Live Sync: Terhubung (${state.rawRows.length.toLocaleString('id-ID')} data agen aktif)`;
       populateFilters();
       renderAll();
+      hideAppLoadingScreen();
     } else {
       if (syncText) {
         syncText.textContent = state.config?.sheetUrl 
@@ -449,6 +559,7 @@ async function fetchDashboardData(force = false) {
           : 'Menunggu Data: Klik "Hubungkan Google Sheet"';
       }
       renderEmptyStates();
+      hideAppLoadingScreen();
     }
   } catch (err) {
     console.error('Fetch error:', err);
@@ -459,6 +570,8 @@ async function fetchDashboardData(force = false) {
     if (syncIcon) syncIcon.style.animation = '';
     if (syncText) syncText.textContent = 'Gagal memuat: ' + err.message;
     renderEmptyStates();
+    setMinimalLoadingProgress(100, 'Memuat data lokal...');
+    hideAppLoadingScreen();
   }
 }
 
@@ -628,7 +741,7 @@ function renderAll() {
   renderTableUnitSelector();
   renderMainTable();
   renderTableSummaryKuadran();
-  renderChart();
+  renderAllCharts();
 }
 
 function renderEmptyStates() {
@@ -778,11 +891,293 @@ function renderTableUnitSelector(filterQuery = '') {
   setSafeText('tfoot-unit-agents-total', totalAgents.toLocaleString('id-ID'));
 }
 
+// Column value getter for agents table
+function getAgentColValue(row, colKey) {
+  if (!row) return '';
+  switch (colKey) {
+    case 'sgp':
+      return (row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp']) || '-').trim();
+    case 'kode':
+      return (row['Kode Agen'] || getVal(row, ['kode agen', 'id agen']) || '-').trim();
+    case 'usaha':
+      return (row['Nama Usaha Agen'] || getVal(row, ['nama usaha', 'usaha', 'outlet']) || '-').trim();
+    case 'pemilik':
+      return (row['Nama Pemilik Agen'] || getVal(row, ['nama pemilik', 'pemilik', 'nama']) || '-').trim();
+    case 'naskomgen': {
+      const v = row['Nas komgen'] || getVal(row, ['nas komgen', 'naskomgen', 'nas']) || '0';
+      return String(v).trim();
+    }
+    case 'funkomgen': {
+      const v = row['Funding Naskomgen'] || row['Funkomgen'] || getVal(row, ['funkomgen', 'fun komgen', 'fun']) || '0';
+      return String(v).trim();
+    }
+    case 'frek': {
+      const v = row['Frekuensi + Ref Input'] || getVal(row, ['frekuensi + ref input', 'frek + ref', 'frek', 'transaksi']) || '0';
+      return String(v).trim();
+    }
+    default:
+      return '';
+  }
+}
+
+function parseCleanNumber(val) {
+  if (typeof val === 'number') return val;
+  const cleaned = String(val || '').replace(/[^0-9.-]+/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+let activePopupColKey = null;
+
+function updateColumnFilterButtonsUI() {
+  document.querySelectorAll('.table-agents-detail .col-filter-btn').forEach(btn => {
+    const colKey = btn.dataset.col;
+    const isFiltered = state.columnFilters && state.columnFilters[colKey] instanceof Set;
+    const isSorted = state.columnSort && state.columnSort.colKey === colKey && state.columnSort.direction;
+    if (isFiltered || isSorted) {
+      btn.classList.add('active');
+      if (isSorted) {
+        btn.textContent = state.columnSort.direction === 'asc' ? '▲' : '▼';
+      } else {
+        btn.textContent = '▼';
+      }
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = '▼';
+    }
+  });
+}
+
+function openColumnFilterPopup(colKey, anchorBtn) {
+  const filterPopupEl = document.getElementById('column-filter-popup');
+  if (!filterPopupEl) return;
+
+  activePopupColKey = colKey;
+
+  // Base filtered dataset
+  let baseDataset = state.rawRows.filter(row => {
+    const sgp = (row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp'])).toLowerCase();
+    const kode = (row['Kode Agen'] || getVal(row, ['kode agen', 'id agen'])).toLowerCase();
+    const usaha = (row['Nama Usaha Agen'] || getVal(row, ['nama usaha', 'usaha', 'outlet'])).toLowerCase();
+    const pemilik = (row['Nama Pemilik Agen'] || getVal(row, ['nama pemilik', 'pemilik', 'nama'])).toLowerCase();
+    const unit = row['Nama Unit'] || getVal(row, ['nama unit', 'unit']);
+    const unitCode = row['Kode Unit'] || getVal(row, ['kode unit']);
+
+    if (state.filters.unit) {
+      const selected = state.filters.unit.toLowerCase().trim();
+      const uNorm = (unit || '').toLowerCase().trim();
+      const cNorm = (unitCode || '').toLowerCase().trim();
+      if (uNorm !== selected && cNorm !== selected && !uNorm.includes(selected)) {
+        return false;
+      }
+    }
+    if (state.filters.sgp && !sgp.includes(state.filters.sgp.toLowerCase())) return false;
+
+    if (state.filters.search) {
+      const q = state.filters.search;
+      if (!sgp.includes(q) && !kode.includes(q) && !usaha.includes(q) && !pemilik.includes(q) && !(unit || '').toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Apply other column filters except this colKey
+  if (state.columnFilters) {
+    Object.keys(state.columnFilters).forEach(otherKey => {
+      if (otherKey !== colKey && state.columnFilters[otherKey] instanceof Set) {
+        const allowedSet = state.columnFilters[otherKey];
+        baseDataset = baseDataset.filter(r => allowedSet.has(getAgentColValue(r, otherKey)));
+      }
+    });
+  }
+
+  // Count distinct values
+  const valueCounts = {};
+  baseDataset.forEach(r => {
+    const val = getAgentColValue(r, colKey);
+    valueCounts[val] = (valueCounts[val] || 0) + 1;
+  });
+
+  const isNumeric = ['naskomgen', 'funkomgen', 'frek'].includes(colKey);
+  const distinctValues = Object.keys(valueCounts).sort((a, b) => {
+    if (isNumeric) {
+      return parseCleanNumber(b) - parseCleanNumber(a);
+    }
+    return a.localeCompare(b, 'id-ID', { numeric: true });
+  });
+
+  const sortAscLabel = isNumeric ? '🔼 Urutkan Terkecil ke Terbesar' : '🔼 Urutkan A ke Z';
+  const sortDescLabel = isNumeric ? '🔽 Urutkan Terbesar ke Terkecil' : '🔽 Urutkan Z ke A';
+
+  const currentSort = (state.columnSort && state.columnSort.colKey === colKey) ? state.columnSort.direction : null;
+  const currentFilterSet = state.columnFilters ? state.columnFilters[colKey] : null;
+
+  filterPopupEl.innerHTML = `
+    <div class="excel-filter-sort-section">
+      <button class="excel-filter-sort-btn ${currentSort === 'asc' ? 'active' : ''}" data-sort="asc">
+        ${sortAscLabel}
+      </button>
+      <button class="excel-filter-sort-btn ${currentSort === 'desc' ? 'active' : ''}" data-sort="desc">
+        ${sortDescLabel}
+      </button>
+    </div>
+    <div class="excel-filter-divider"></div>
+    <input type="text" class="excel-filter-search-box" id="popup-search-box" placeholder="Cari nilai...">
+    <div class="excel-filter-list custom-scrollbar" id="popup-checkbox-list-container"></div>
+    <div class="excel-filter-footer">
+      <button class="excel-filter-action-btn excel-filter-btn-clear" id="popup-btn-clear">Hapus Filter</button>
+      <button class="excel-filter-action-btn excel-filter-btn-apply" id="popup-btn-apply">Terapkan</button>
+    </div>
+  `;
+
+  // Position popup directly under the target TH header cell
+  const thCell = anchorBtn.closest('th') || anchorBtn;
+  const thRect = thCell.getBoundingClientRect();
+  const POPUP_WIDTH = Math.max(230, Math.min(270, thRect.width + 40));
+
+  filterPopupEl.style.width = `${POPUP_WIDTH}px`;
+  filterPopupEl.style.top = `${thRect.bottom + 4}px`;
+
+  let popupLeft = thRect.left;
+  if (popupLeft + POPUP_WIDTH > window.innerWidth - 10) {
+    popupLeft = thRect.right - POPUP_WIDTH;
+  }
+  if (popupLeft < 10) popupLeft = 10;
+  filterPopupEl.style.left = `${popupLeft}px`;
+
+  filterPopupEl.classList.remove('hidden');
+
+  function renderPopupCheckboxList(query = '') {
+    const container = document.getElementById('popup-checkbox-list-container');
+    if (!container) return;
+
+    const q = query.toLowerCase().trim();
+    const filteredDistinct = q
+      ? distinctValues.filter(v => v.toLowerCase().includes(q))
+      : distinctValues;
+
+    const MAX_ITEMS = 150;
+    const isCapped = filteredDistinct.length > MAX_ITEMS;
+    const visibleValues = isCapped ? filteredDistinct.slice(0, MAX_ITEMS) : filteredDistinct;
+
+    let html = `
+      <label class="excel-filter-item">
+        <input type="checkbox" id="popup-select-all" ${!currentFilterSet ? 'checked' : ''}>
+        <span class="excel-filter-item-text" style="font-weight: 700; color: #ffffff;">(Pilih Semua)</span>
+      </label>
+    `;
+
+    html += visibleValues.map(val => {
+      const isChecked = !currentFilterSet || currentFilterSet.has(val);
+      return `
+        <label class="excel-filter-item" data-val="${escapeAttr(val)}">
+          <input type="checkbox" class="popup-item-cb" data-val="${escapeAttr(val)}" ${isChecked ? 'checked' : ''}>
+          <span class="excel-filter-item-text" title="${escapeAttr(val)}">${escapeAttr(val)}</span>
+          <span class="excel-filter-item-count">(${valueCounts[val]})</span>
+        </label>
+      `;
+    }).join('');
+
+    if (isCapped) {
+      html += `
+        <div style="font-size: 10px; color: #38bdf8; font-style: italic; padding: 4px; text-align: center;">
+          Menampilkan 150 dari ${filteredDistinct.length} nilai. Ketik di pencarian untuk menyaring.
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+
+    const selectAllCb = document.getElementById('popup-select-all');
+    if (selectAllCb) {
+      selectAllCb.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        container.querySelectorAll('.popup-item-cb').forEach(cb => {
+          cb.checked = checked;
+        });
+      });
+    }
+  }
+
+  renderPopupCheckboxList('');
+
+  const searchBox = document.getElementById('popup-search-box');
+  if (searchBox) {
+    searchBox.focus();
+    searchBox.addEventListener('input', (e) => {
+      renderPopupCheckboxList(e.target.value);
+    });
+  }
+
+  // Sort buttons
+  filterPopupEl.querySelectorAll('.excel-filter-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dir = btn.dataset.sort;
+      if (!state.columnSort) state.columnSort = { colKey: null, direction: null };
+      if (state.columnSort.colKey === colKey && state.columnSort.direction === dir) {
+        state.columnSort.colKey = null;
+        state.columnSort.direction = null;
+      } else {
+        state.columnSort.colKey = colKey;
+        state.columnSort.direction = dir;
+      }
+      renderMainTable();
+      closeColumnFilterPopup();
+    });
+  });
+
+  // Clear button
+  document.getElementById('popup-btn-clear').addEventListener('click', () => {
+    if (!state.columnFilters) state.columnFilters = {};
+    state.columnFilters[colKey] = null;
+    if (state.columnSort && state.columnSort.colKey === colKey) {
+      state.columnSort.colKey = null;
+      state.columnSort.direction = null;
+    }
+    renderMainTable();
+    closeColumnFilterPopup();
+  });
+
+  // Apply button
+  document.getElementById('popup-btn-apply').addEventListener('click', () => {
+    const selectedSet = new Set();
+    const container = document.getElementById('popup-checkbox-list-container');
+    const itemCbs = container ? container.querySelectorAll('.popup-item-cb') : [];
+
+    itemCbs.forEach(cb => {
+      if (cb.checked) {
+        selectedSet.add(cb.dataset.val);
+      }
+    });
+
+    const selectAllCb = document.getElementById('popup-select-all');
+    if (!state.columnFilters) state.columnFilters = {};
+
+    if ((selectAllCb && selectAllCb.checked) || selectedSet.size === distinctValues.length) {
+      state.columnFilters[colKey] = null;
+    } else {
+      state.columnFilters[colKey] = selectedSet;
+    }
+
+    renderMainTable();
+    closeColumnFilterPopup();
+  });
+}
+
+function closeColumnFilterPopup() {
+  const filterPopupEl = document.getElementById('column-filter-popup');
+  if (filterPopupEl) {
+    filterPopupEl.classList.add('hidden');
+    activePopupColKey = null;
+  }
+}
+
 // TABEL 3: Main Performance Agen
 function renderMainTable() {
   const tbody = document.getElementById('tbody-agents-main');
   if (!tbody) return;
 
+  // 1. Base filtering (unit, sgp, search)
   let list = state.rawRows.filter(row => {
     const sgp = (row['Nama SGP'] || getVal(row, ['nama sgp', 'sgp'])).toLowerCase();
     const kode = (row['Kode Agen'] || getVal(row, ['kode agen', 'id agen'])).toLowerCase();
@@ -803,12 +1198,44 @@ function renderMainTable() {
 
     if (state.filters.search) {
       const q = state.filters.search;
-      if (!sgp.includes(q) && !kode.includes(q) && !usaha.includes(q) && !pemilik.includes(q) && !unit.toLowerCase().includes(q)) {
+      if (!sgp.includes(q) && !kode.includes(q) && !usaha.includes(q) && !pemilik.includes(q) && !(unit || '').toLowerCase().includes(q)) {
         return false;
       }
     }
     return true;
   });
+
+  // 2. Excel column filters
+  if (state.columnFilters) {
+    Object.keys(state.columnFilters).forEach(colKey => {
+      const allowedSet = state.columnFilters[colKey];
+      if (allowedSet instanceof Set) {
+        list = list.filter(row => allowedSet.has(getAgentColValue(row, colKey)));
+      }
+    });
+  }
+
+  // 3. Excel column sorting
+  if (state.columnSort && state.columnSort.colKey && state.columnSort.direction) {
+    const { colKey, direction } = state.columnSort;
+    const isNumeric = ['naskomgen', 'funkomgen', 'frek'].includes(colKey);
+    list.sort((a, b) => {
+      if (isNumeric) {
+        const numA = parseCleanNumber(getAgentColValue(a, colKey));
+        const numB = parseCleanNumber(getAgentColValue(b, colKey));
+        return direction === 'asc' ? numA - numB : numB - numA;
+      } else {
+        const strA = getAgentColValue(a, colKey);
+        const strB = getAgentColValue(b, colKey);
+        return direction === 'asc' 
+          ? strA.localeCompare(strB, 'id-ID', { numeric: true })
+          : strB.localeCompare(strA, 'id-ID', { numeric: true });
+      }
+    });
+  }
+
+  // Update UI active buttons in table headers
+  updateColumnFilterButtonsUI();
 
   const total = list.length;
   setSafeText('agent-count-badge', `${total.toLocaleString('id-ID')} Agen`);
@@ -866,8 +1293,6 @@ function renderMainTable() {
   setSafeText('tfoot-total-naskomgen', totNas.toLocaleString('id-ID'));
   setSafeText('tfoot-total-funkomgen', totFun.toLocaleString('id-ID'));
   setSafeText('tfoot-total-frek', totFrek.toLocaleString('id-ID'));
-
-
 }
 
 // TABEL 4: Rekapitulasi Kuadran A & C per Unit
@@ -897,36 +1322,271 @@ function renderTableSummaryKuadran() {
   setSafeText('tfoot-sum-ac-total', grandTotalAC.toLocaleString('id-ID'));
 }
 
-// Performance Chart
-function renderChart() {
-  const canvas = document.getElementById('performanceChart');
-  const notice = document.getElementById('chart-empty-notice');
-  if (!canvas) return;
 
+// =====================================================================
+// BUSINESS ANALYTICS CHARTS (CHART.JS SUITE)
+// 1. Grouped Bar: Tren Bulanan Kuadran A vs C (Sept vs Okt)
+// 2. Horizontal Bar: Ranking Unit Terbaik Kuadran A & C
+// 3. Top N Bar: Top 10 SGP / Outlet Kontributor Utama
+// =====================================================================
+
+const chartInstances = {
+  tren: null,
+  ranking: null,
+  topAgen: null
+};
+
+let activeChartTab = 'tab-tren';
+
+function initChartTabs() {
+  const pillButtons = document.querySelectorAll('#chart-tab-pills .chart-pill-btn');
+  const subControls = document.getElementById('top-agen-controls');
+  const modeSelect = document.getElementById('select-top-mode');
+  const metricSelect = document.getElementById('select-top-metric');
+
+  pillButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-tab');
+      if (!targetTab || targetTab === activeChartTab) return;
+      activeChartTab = targetTab;
+
+      // Update active pill button
+      pillButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Update panes
+      document.querySelectorAll('.chart-tab-pane').forEach(p => p.classList.remove('active'));
+      const activePane = document.getElementById('pane-' + targetTab);
+      if (activePane) activePane.classList.add('active');
+
+      // Show/hide sub controls for top 10 agen
+      if (subControls) {
+        subControls.style.display = (targetTab === 'tab-top-agen') ? 'flex' : 'none';
+      }
+
+      // Re-render target chart with proper size
+      renderActiveChart();
+    });
+  });
+
+  if (modeSelect) {
+    modeSelect.addEventListener('change', () => {
+      renderChartTopAgen();
+    });
+  }
+  if (metricSelect) {
+    metricSelect.addEventListener('change', () => {
+      renderChartTopAgen();
+    });
+  }
+}
+
+function renderAllCharts() {
+  const notice = document.getElementById('chart-empty-notice');
   if (notice) notice.style.display = 'none';
 
-  const topUnits = state.summaryKuadranData.slice(0, 8);
-  const labels = topUnits.map(u => u.unit.replace(/^(Jakarta|Bogor|Depok)\s*/i, ''));
-  const data = topUnits.map(u => u.totalAC);
+  renderChartTrenBulanan();
+  renderChartRankingUnit();
+  renderChartTopAgen();
+}
 
-  if (state.chartInstance) {
-    state.chartInstance.destroy();
+function renderActiveChart() {
+  if (activeChartTab === 'tab-tren') {
+    renderChartTrenBulanan();
+  } else if (activeChartTab === 'tab-ranking') {
+    renderChartRankingUnit();
+  } else if (activeChartTab === 'tab-top-agen') {
+    renderChartTopAgen();
+  }
+}
+
+// -------------------------------------------------------------
+// CHART 1: Tren Bulanan Kuadran A vs C (Grouped Bar Chart)
+// -------------------------------------------------------------
+function renderChartTrenBulanan() {
+  const canvas = document.getElementById('chartTrenBulanan');
+  if (!canvas) return;
+
+  let totalSeptA = 0, totalSeptC = 0, totalOktA = 0, totalOktC = 0;
+  (state.monthlyData || []).forEach(d => {
+    totalSeptA += Number(d.septA) || 0;
+    totalSeptC += Number(d.septC) || 0;
+    totalOktA += Number(d.oktA) || 0;
+    totalOktC += Number(d.oktC) || 0;
+  });
+
+  if (chartInstances.tren) {
+    chartInstances.tren.destroy();
   }
 
-  state.chartInstance = new Chart(canvas, {
+  // Custom Plugin: Always-Visible Direct Data Labels (Matching User Reference)
+  // Menampilkan angka total di atas bar & persentase di dalam bar secara permanen tanpa perlu di-hover
+  const alwaysVisibleLabelsPlugin = {
+    id: 'alwaysVisibleLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const totalSept = (totalSeptA + totalSeptC) || 1;
+      const totalOkt = (totalOktA + totalOktC) || 1;
+
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (meta.hidden) return;
+
+        meta.data.forEach((bar, index) => {
+          const val = dataset.data[index] || 0;
+          if (val === 0) return;
+
+          const totalBulan = index === 0 ? totalSept : totalOkt;
+          const pct = Math.round((val / totalBulan) * 100) + '%';
+          const formattedVal = val.toLocaleString('id-ID');
+
+          ctx.save();
+          ctx.textAlign = 'center';
+
+          // 1. ANGKANYA LANGSUNG MUNCUL DI ATAS BAR (Tanpa perlu hover kursor)
+          ctx.font = '700 13px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+          ctx.shadowBlur = 4;
+          ctx.fillText(formattedVal, bar.x, bar.y - 8);
+
+          // 2. PERSENTASE DI DALAM BAR (Sesuai gambar referensi: putih di navy, hitam di gold)
+          const barHeight = bar.base - bar.y;
+          if (barHeight > 28) {
+            ctx.shadowBlur = 0;
+            ctx.font = '800 15px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            // Kuadran A (Navy/Blue) -> teks putih; Kuadran C (Gold) -> teks hitam
+            ctx.fillStyle = (datasetIndex === 0) ? '#ffffff' : '#000000';
+            
+            const textY = bar.y + (barHeight * 0.45);
+            ctx.fillText(pct, bar.x, textY);
+          }
+
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  chartInstances.tren = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: ['September', 'Oktober'],
+      datasets: [
+        {
+          label: 'Kuadran A (High Performer)',
+          data: [totalSeptA, totalOktA],
+          backgroundColor: '#003D79', // Deep Mandiri Navy Blue (seperti gambar)
+          borderColor: '#38bdf8',
+          borderWidth: 1.5,
+          borderRadius: { topLeft: 4, topRight: 4 },
+          barPercentage: 0.85,
+          categoryPercentage: 0.6
+        },
+        {
+          label: 'Kuadran C (Growing / Potential)',
+          data: [totalSeptC, totalOktC],
+          backgroundColor: '#FFB700', // Mandiri Golden Yellow (seperti gambar)
+          borderColor: '#d97706',
+          borderWidth: 1.5,
+          borderRadius: { topLeft: 4, topRight: 4 },
+          barPercentage: 0.85,
+          categoryPercentage: 0.6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 26,
+          left: 10,
+          right: 10
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            color: '#cbd5e1',
+            font: { size: 11, weight: '600' },
+            boxWidth: 14,
+            padding: 14
+          }
+        },
+        tooltip: {
+          backgroundColor: '#081738',
+          titleColor: '#FFB700',
+          bodyColor: '#ffffff',
+          borderColor: '#1e3a6a',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(ctx) {
+              const val = ctx.raw || 0;
+              const totalBulan = ctx.dataIndex === 0 ? (totalSeptA + totalSeptC) : (totalOktA + totalOktC);
+              const pct = totalBulan > 0 ? ((val / totalBulan) * 100).toFixed(1) : 0;
+              return ` ${ctx.dataset.label}: ${val.toLocaleString('id-ID')} Agen (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#f1f5f9', font: { size: 12, weight: '700' } },
+          grid: { display: false }
+        },
+        y: {
+          grace: '20%', // Memberikan ruang lega di atas bar agar angka tidak terpotong
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 10 },
+            callback: function(v) { return v.toLocaleString('id-ID'); }
+          },
+          grid: { color: 'rgba(255, 255, 255, 0.06)' }
+        }
+      }
+    },
+    plugins: [alwaysVisibleLabelsPlugin]
+  });
+}
+
+// -------------------------------------------------------------
+// CHART 2: Ranking Unit Terbaik Kuadran A & C (Horizontal Bar)
+// -------------------------------------------------------------
+function renderChartRankingUnit() {
+  const canvas = document.getElementById('chartRankingUnit');
+  if (!canvas) return;
+
+  const sortedUnits = (state.summaryKuadranData || [])
+    .slice()
+    .sort((a, b) => b.totalAC - a.totalAC)
+    .slice(0, 10);
+
+  const labels = sortedUnits.map(u => u.unit.replace(/^(Jakarta|Bogor|Depok)\s*/i, ''));
+  const values = sortedUnits.map(u => u.totalAC);
+
+  if (chartInstances.ranking) {
+    chartInstances.ranking.destroy();
+  }
+
+  chartInstances.ranking = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Kuadran A & C',
-        data,
-        backgroundColor: '#38bdf8',
-        borderColor: '#0284c7',
+        label: 'Total Kuadran A & C',
+        data: values,
+        backgroundColor: 'rgba(0, 120, 212, 0.85)',
+        borderColor: '#38bdf8',
         borderWidth: 1.5,
         borderRadius: 4
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
@@ -936,17 +1596,182 @@ function renderChart() {
           titleColor: '#FFB700',
           bodyColor: '#ffffff',
           borderColor: '#1e3a6a',
-          borderWidth: 1
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(ctx) {
+              return ` ${ctx.dataset.label}: ${(ctx.raw || 0).toLocaleString('id-ID')} Agen`;
+            }
+          }
         }
       },
       scales: {
         x: {
-          ticks: { color: '#94a3b8', font: { size: 10 } },
-          grid: { display: false }
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 10 },
+            callback: function(v) { return v.toLocaleString('id-ID'); }
+          },
+          grid: { color: 'rgba(255, 255, 255, 0.06)' }
         },
         y: {
-          ticks: { color: '#94a3b8', font: { size: 10 } },
+          ticks: {
+            color: '#e2e8f0',
+            font: { size: 10.5, weight: '500' }
+          },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// CHART 3: Top N Bar Chart (Performa Agen / SGP Terbaik)
+// -------------------------------------------------------------
+function renderChartTopAgen() {
+  const canvas = document.getElementById('chartTopAgen');
+  if (!canvas) return;
+
+  const mode = document.getElementById('select-top-mode')?.value || 'sgp';
+  const metric = document.getElementById('select-top-metric')?.value || 'frek';
+
+  let items = [];
+  let metricLabel = 'Frek + Ref Input';
+  let barColor = 'rgba(16, 185, 129, 0.85)';
+  let borderColor = '#34d399';
+
+  if (metric === 'fun') {
+    metricLabel = 'Funding Naskomgen';
+    barColor = 'rgba(255, 183, 0, 0.85)';
+    borderColor = '#fbbf24';
+  } else if (metric === 'nas') {
+    metricLabel = 'Nas komgen';
+    barColor = 'rgba(56, 189, 248, 0.85)';
+    borderColor = '#0284c7';
+  }
+
+  if (mode === 'sgp') {
+    // Aggregate by SGP
+    const sgpMap = {};
+    (state.rawRows || []).forEach(r => {
+      const name = (r['Nama SGP'] || getVal(r, ['nama sgp', 'sgp']) || '').trim();
+      if (!name || name === '-' || name.toLowerCase() === 'null') return;
+
+      let val = 0;
+      if (metric === 'frek') {
+        const raw = r['Frekuensi + Ref Input'] || getVal(r, ['frekuensi + ref input', 'frek + ref', 'frek', 'transaksi']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      } else if (metric === 'fun') {
+        const raw = r['Funding Naskomgen'] || r['Funkomgen'] || getVal(r, ['funkomgen', 'fun komgen', 'fun']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      } else {
+        const raw = r['Nas komgen'] || getVal(r, ['nas komgen', 'naskomgen', 'nas']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      }
+
+      if (!sgpMap[name]) {
+        sgpMap[name] = { name, total: 0, count: 0 };
+      }
+      sgpMap[name].total += val;
+      sgpMap[name].count += 1;
+    });
+
+    items = Object.values(sgpMap)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  } else {
+    // Individual Outlet (Nama Usaha Agen)
+    items = (state.rawRows || []).map(r => {
+      const name = r['Nama Usaha Agen'] || getVal(r, ['nama usaha', 'usaha', 'outlet']) || 'Agen';
+      const sgp = r['Nama SGP'] || getVal(r, ['nama sgp', 'sgp']) || '';
+      let val = 0;
+      if (metric === 'frek') {
+        const raw = r['Frekuensi + Ref Input'] || getVal(r, ['frekuensi + ref input', 'frek + ref', 'frek', 'transaksi']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      } else if (metric === 'fun') {
+        const raw = r['Funding Naskomgen'] || r['Funkomgen'] || getVal(r, ['funkomgen', 'fun komgen', 'fun']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      } else {
+        const raw = r['Nas komgen'] || getVal(r, ['nas komgen', 'naskomgen', 'nas']);
+        val = parseFloat(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+      }
+      return {
+        name: name.length > 22 ? name.substring(0, 20) + '...' : name,
+        fullName: name,
+        sgp,
+        total: val
+      };
+    })
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+  }
+
+  const labels = items.map(i => i.name);
+  const values = items.map(i => i.total);
+
+  if (chartInstances.topAgen) {
+    chartInstances.topAgen.destroy();
+  }
+
+  chartInstances.topAgen = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: metricLabel,
+        data: values,
+        backgroundColor: barColor,
+        borderColor: borderColor,
+        borderWidth: 1.5,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#081738',
+          titleColor: '#FFB700',
+          bodyColor: '#ffffff',
+          borderColor: '#1e3a6a',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            title: function(ctx) {
+              const idx = ctx[0].dataIndex;
+              const item = items[idx];
+              return item?.fullName ? item.fullName : (ctx[0].label || '');
+            },
+            label: function(ctx) {
+              const idx = ctx.dataIndex;
+              const item = items[idx];
+              const val = (ctx.raw || 0).toLocaleString('id-ID');
+              const sgpSub = item?.sgp ? ` (SGP: ${item.sgp})` : '';
+              const countSub = item?.count ? ` (${item.count} agen didampingi)` : '';
+              return ` ${metricLabel}: ${val}${sgpSub}${countSub}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 10 },
+            callback: function(v) { return v.toLocaleString('id-ID'); }
+          },
           grid: { color: 'rgba(255, 255, 255, 0.06)' }
+        },
+        y: {
+          ticks: {
+            color: '#e2e8f0',
+            font: { size: 10.5, weight: '500' }
+          },
+          grid: { display: false }
         }
       }
     }
